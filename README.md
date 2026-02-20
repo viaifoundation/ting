@@ -34,6 +34,9 @@ python scripts/concat_daily.py -c "1:1,1:2,1:3" -o daily_001.mp3
 # With background music (put BGM files in assets/bgm/)
 python scripts/concat_daily.py -c "1:1,1:2" -o day.mp3 --bgm --bgm-volume -20 --speech-volume 2
 
+# 2x speed (atempo, pitch preserved)
+python scripts/concat_daily.py -c "1:1,1:2" -o day.mp3 --speed 2
+
 # Mix BGM into an existing audio file
 python scripts/mix_bgm.py -i daily_001.mp3 --bgm --bgm-track AmazingGrace.mp3
 ```
@@ -46,7 +49,7 @@ python scripts/mix_bgm.py -i daily_001.mp3 --bgm --bgm-track AmazingGrace.mp3
 
 ## Reading plans
 
-**Top 10 popular plans** (ranked), in `asset/bible/plans/`:
+**Top 10 popular plans** (ranked), in `assets/bible/plans/`:
 
 | # | Plan | Days | Description |
 |---|------|------|-------------|
@@ -75,10 +78,14 @@ python scripts/generate_plan_audio.py chronological-90days -o output/chronologic
 python scripts/generate_plan_audio.py chronological-1year -o output/chronological-1year --start-day 2 --end-day 4 --speech-volume 4
 # Custom start date (default: 2026-02-17)
 python scripts/generate_plan_audio.py chronological-1year -o output/chronological-1year --start-date 2026-02-17 --speech-volume 4
-# Optionally add BGM
+# 2x speed + BGM (add MP3/WAV files to assets/bgm/ first)
+python scripts/generate_plan_audio.py chronological-90days -o output/chronological-90days --speech-volume 4 --speed 2 --bgm
+# Optionally add BGM only
 python scripts/generate_plan_audio.py chronological-1year -o output/chronological-1year --speech-volume 4 --bgm
 ```
-Output: `YYYYMMDD_历史读经第N天.mp3` (historical 1-year) or `YYYYMMDD_90天历史读经第N天.mp3` (90-day). Goes to `output/` (gitignored).
+Output: `YYYYMMDD_历史读经第N天.mp3` (historical 1-year) or `YYYYMMDD_90天历史读经第N天.mp3` (90-day). With `--bgm`, filenames get `-bgm` suffix (e.g. `YYYYMMDD_历史读经第1天-bgm.mp3`) so both versions coexist. Goes to `output/` (gitignored).
+
+Speed uses ffmpeg `atempo` (pitch preserved); `--speed 2` = 2x.
 
 **Print plan content in Chinese:**
 ```bash
@@ -88,9 +95,9 @@ python scripts/print_plan_cn.py chronological-90days 4 2026-02-17   # With custo
 
 ## Layout
 
-- `asset/bible/audio/chapters/` – one MP3 per chapter (gitignored)
-- `asset/bible/audio/zips/` – downloaded ZIPs (gitignored)
-- `asset/bible/plans/` – reading plan JSON files
-- `output/` – generated daily MP3s (gitignored)
+- `assets/bible/audio/chapters/` – one MP3 per chapter (gitignored)
+- `assets/bible/audio/zips/` – downloaded ZIPs (gitignored)
+- `assets/bible/plans/` – reading plan JSON files
 - `assets/bgm/` – add your own BGM files (.mp3, .wav, .m4a)
+- `output/` – generated daily MP3s (gitignored)
 - See `READING_PLAN_AUDIO_FEATURE_PLAN.md` for full feature plan

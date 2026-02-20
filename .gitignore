@@ -1,5 +1,5 @@
 # Bible audio assets (downloaded/generated, not in repo)
-/asset/bible/audio/
+/assets/bible/audio/
 
 # Generated daily MP3s
 /output/

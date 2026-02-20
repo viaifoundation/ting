@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Download Everest Audio Bible ZIPs, unzip, and arrange as one MP3 per chapter
-in asset/bible/audio/chapters/ as BBB_CCC.mp3 (book 1-66, chapter 1..N).
+in assets/bible/audio/chapters/ as BBB_CCC.mp3 (book 1-66, chapter 1..N).
 
 Usage: python scripts/download_everest_audio.py [--dry-run] [--start N] [--end N]
 Requires: requests (pip install requests)
@@ -45,9 +45,9 @@ def main():
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parent.parent
-    zips_dir = repo_root / "asset" / "bible" / "audio" / "zips"
-    chapters_dir = repo_root / "asset" / "bible" / "audio" / "chapters"
-    temp_extract = repo_root / "asset" / "bible" / "audio" / ".tmp_extract"
+    zips_dir = repo_root / "assets" / "bible" / "audio" / "zips"
+    chapters_dir = repo_root / "assets" / "bible" / "audio" / "chapters"
+    temp_extract = repo_root / "assets" / "bible" / "audio" / ".tmp_extract"
 
     zips_dir.mkdir(parents=True, exist_ok=True)
     chapters_dir.mkdir(parents=True, exist_ok=True)

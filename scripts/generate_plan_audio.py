@@ -20,7 +20,7 @@ PLAN_FILENAME = {
     "chronological-1year": "历史读经第{i}天",
     "chronological-90days": "90天历史读经第{i}天",
 }
-PLANS_DIR = REPO_ROOT / "asset" / "bible" / "plans"
+PLANS_DIR = REPO_ROOT / "assets" / "bible" / "plans"
 CONCAT_SCRIPT = REPO_ROOT / "scripts" / "concat_daily.py"
 
 
@@ -32,6 +32,7 @@ def main():
                         help="Boost speech volume in dB (Everest is quiet, default 4)")
     parser.add_argument("--bgm", action="store_true", help="Add background music")
     parser.add_argument("--bgm-volume", type=int, default=-20)
+    parser.add_argument("--speed", type=float, default=1.0, help="Playback speed (e.g. 2.0 = 2x)")
     parser.add_argument("--start-date", type=str, default="2026-02-17",
                         help="First day date YYYY-MM-DD")
     parser.add_argument("--start-day", type=int, default=1)
@@ -66,6 +67,8 @@ def main():
         d = start_date + timedelta(days=day - 1)
         prefix = d.strftime("%Y%m%d")  # YYYYMMDD
         name = f"{prefix}_{name_fmt.format(i=day)}"
+        if args.bgm:
+            name += "-bgm"
         out_file = out_dir / f"{name}.mp3"
         cmd = [
             sys.executable, str(CONCAT_SCRIPT),
@@ -75,6 +78,8 @@ def main():
         ]
         if args.bgm:
             cmd.extend(["--bgm", "--bgm-volume", str(args.bgm_volume)])
+        if args.speed > 1.0:
+            cmd.extend(["--speed", str(args.speed)])
         subprocess.run(cmd, check=True)
         print(f"Day {day}: {out_file.name}")
 

@@ -44,7 +44,7 @@ def main():
     max_days = int(sys.argv[2]) if len(sys.argv) > 2 else 4
     start_date = date.fromisoformat(sys.argv[3]) if len(sys.argv) > 3 else date(2026, 2, 17)
 
-    plan_path = Path(__file__).resolve().parent.parent / "asset" / "bible" / "plans" / f"{plan_id}.json"
+    plan_path = Path(__file__).resolve().parent.parent / "assets" / "bible" / "plans" / f"{plan_id}.json"
     if not plan_path.exists():
         print(f"Plan not found: {plan_id}")
         return 1

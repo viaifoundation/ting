@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from plan_utils import parse_day_text
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PLANS_DIR = REPO_ROOT / "asset" / "bible" / "plans"
+PLANS_DIR = REPO_ROOT / "assets" / "bible" / "plans"
 
 # Top 10 yearly plans from Bible Study Tools (fetchable)
 BST_YEARLY_PLANS = [

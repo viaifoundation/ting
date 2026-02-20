@@ -16,13 +16,13 @@ This document outlines the feature to generate Bible reading plan audio (MP3) fr
 
 ---
 
-## 2. Local Layout: `asset/bible/audio/`
+## 2. Local Layout: `assets/bible/audio/`
 
-- **Path**: `asset/bible/audio/` (excluded from git via `.gitignore`).
+- **Path**: `assets/bible/audio/` (excluded from git via `.gitignore`).
 - **Convention**: One MP3 per chapter so that any reading plan "day" can be built by concatenating a list of chapters.
 
 ```text
-asset/bible/audio/
+assets/bible/audio/
 ├── chapters/                    # One file per chapter (canonical source)
 │   ├── 001_001.mp3             # Genesis 1
 │   ├── … 066_022.mp3           # Revelation 22
@@ -42,6 +42,9 @@ Run `python scripts/download_everest_audio.py` to download all 66 books and arra
 
 Use ffmpeg concat:  
 `ffmpeg -f concat -safe 0 -i list.txt -c copy day_N.mp3`
+
+**Speed:** `concat_daily.py` uses ffmpeg `atempo` for pitch-preserving speed (e.g. 2x).  
+**BGM output:** With `--bgm`, filenames get `-bgm` suffix so both versions coexist.
 
 ---
 

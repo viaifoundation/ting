@@ -14,12 +14,41 @@ Requires: pydub, ffmpeg (for pydub mp3 support).
 import argparse
 from pathlib import Path
 
+import subprocess
+import tempfile
 from pydub import AudioSegment
 
 # Import from repo root
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import audio_mixer
+
+
+def _speedup_ffmpeg(seg: AudioSegment, speed: float) -> AudioSegment:
+    """Speed up using ffmpeg atempo (preserves pitch). Chains atempo for speed > 2."""
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+        tmp_in = f.name
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+        tmp_out = f.name
+    try:
+        seg.export(tmp_in, format="wav")
+        # atempo accepts 0.5–2.0; chain for higher speeds (e.g. 3x = atempo=2,atempo=1.5)
+        parts = []
+        r = speed
+        while r > 2.0:
+            parts.append("atempo=2")
+            r /= 2.0
+        if r > 1.0:
+            parts.append(f"atempo={r}")
+        filter_str = ",".join(parts) if parts else "atempo=1"
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", tmp_in, "-filter:a", filter_str, tmp_out],
+            check=True, capture_output=True
+        )
+        return AudioSegment.from_wav(tmp_out)
+    finally:
+        Path(tmp_in).unlink(missing_ok=True)
+        Path(tmp_out).unlink(missing_ok=True)
 
 
 def parse_chapters(spec: str):
@@ -52,7 +81,7 @@ Examples:
     parser.add_argument("--chapters", "-c", type=str, help="Comma-separated book:chapter (e.g. 1:1,1:2,43:16)")
     parser.add_argument("--chapters-file", "-f", type=str, help="File with one book:chapter per line")
     parser.add_argument("--output", "-o", type=str, required=True, help="Output MP3 path")
-    parser.add_argument("--chapters-dir", type=str, default=None, help="Chapters dir (default: asset/bible/audio/chapters)")
+    parser.add_argument("--chapters-dir", type=str, default=None, help="Chapters dir (default: assets/bible/audio/chapters)")
     parser.add_argument("--gap-ms", type=int, default=500, help="Silence between chapters (ms)")
 
     # BGM
@@ -63,8 +92,9 @@ Examples:
     parser.add_argument("--bgm-intro", type=int, default=4000, help="BGM intro delay (ms)")
     parser.add_argument("--bgm-tail", type=int, default=3000, help="BGM tail after speech (ms)")
 
-    # Volume
+    # Volume & speed
     parser.add_argument("--speech-volume", type=int, default=0, help="Speech volume adjustment in dB (0 = no change)")
+    parser.add_argument("--speed", type=float, default=1.0, help="Playback speed (e.g. 2.0 = 2x, must be >= 1.0)")
 
     args = parser.parse_args()
 
@@ -84,7 +114,7 @@ Examples:
 
     # Paths
     repo_root = Path(__file__).resolve().parent.parent
-    chapters_dir = Path(args.chapters_dir) if args.chapters_dir else repo_root / "asset" / "bible" / "audio" / "chapters"
+    chapters_dir = Path(args.chapters_dir) if args.chapters_dir else repo_root / "assets" / "bible" / "audio" / "chapters"
     output_path = Path(args.output)
     if not output_path.is_absolute():
         output_path = repo_root / output_path
@@ -114,6 +144,10 @@ Examples:
     # Trim trailing silence
     combined = combined[:-args.gap_ms] if args.gap_ms > 0 else combined
 
+    # Apply speed (use ffmpeg atempo - pydub speedup is very slow for long audio)
+    if args.speed > 1.0:
+        combined = _speedup_ffmpeg(combined, args.speed)
+
     # Apply BGM or speech volume
     if args.bgm:
         combined = audio_mixer.mix_bgm(
@@ -129,7 +163,7 @@ Examples:
         combined = combined + args.speech_volume
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    combined.export(str(output_path), format="mp3", bitrate="192k")
+    combined.export(str(output_path), format="mp3", bitrate="320k")
     print(f"✅ Saved: {output_path}")
     return 0
 
