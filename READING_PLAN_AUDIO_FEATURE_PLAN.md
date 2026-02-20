@@ -48,7 +48,7 @@ Use ffmpeg concat:
 
 **Speed (tried):** asetrate+aresample (2x but chipmunk pitch) ❌ → atempo (2x, pitch preserved) ✅.
 
-**BGM volume:** Rotated tracks are RMS-normalized to -18 dBFS before `--bgm-volume` so different sources don’t cause volume jumps.
+**BGM rotation:** Per output file by length. If output > one track, append next (random order); when all used, loop. First track and sequence random. Tracks RMS-normalized to -18 dBFS before `--bgm-volume` so different sources don’t cause volume jumps.
 
 ---
 

@@ -77,7 +77,7 @@ def main():
             "--speech-volume", str(args.speech_volume),
         ]
         if args.bgm:
-            cmd.extend(["--bgm", "--bgm-volume", str(args.bgm_volume), "--bgm-track-index", str(day - 1)])
+            cmd.extend(["--bgm", "--bgm-volume", str(args.bgm_volume)])
         if args.speed > 1.0:
             cmd.extend(["--speed", str(args.speed)])
         subprocess.run(cmd, check=True)

@@ -98,7 +98,7 @@ python scripts/print_plan_cn.py chronological-90days 4 2026-02-17   # With custo
 - `assets/bible/audio/chapters/` – one MP3 per chapter (gitignored)
 - `assets/bible/audio/zips/` – downloaded ZIPs (gitignored)
 - `assets/bible/plans/` – reading plan JSON files
-- `assets/bgm/` – add your own BGM files (.mp3, .wav, .m4a). When generating multiple days with `--bgm`, tracks rotate (day 1→track 1, day 2→track 2, …; loops if more days than tracks). Each track is normalized to the same RMS level so rotated music stays consistent in volume.
+- `assets/bgm/` – add your own BGM files (.mp3, .wav, .m4a). With `--bgm`, BGM rotates **per output file** by length: if the output is longer than one track, the next track is appended, and so on; when all tracks are used, the sequence loops. First track and rotation order are random for each file. Tracks are RMS-normalized for consistent volume.
 - `output/` – generated daily MP3s (gitignored)
 - See `READING_PLAN_AUDIO_FEATURE_PLAN.md` for full feature plan
 
@@ -115,4 +115,4 @@ Player 2x on the original 1x file also works (each player implements its own alg
 
 ### BGM rotation
 
-Different music files often have different recording levels. When rotating (day 1→track A, day 2→track B, …), volume jumps were noticeable. **Fix:** we RMS-normalize each BGM track to -18 dBFS before applying `--bgm-volume`, so all rotated tracks end up at a consistent level.
+Rotation is **per output file**, not per day. If an output is longer than one music track, we append the next track (random order), and loop through all tracks when exhausted. The first track and sequence are randomized for each file. Tracks are RMS-normalized to -18 dBFS before `--bgm-volume` so different sources don't cause volume jumps.
