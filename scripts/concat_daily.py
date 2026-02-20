@@ -86,8 +86,9 @@ Examples:
 
     # BGM
     parser.add_argument("--bgm", action="store_true", help="Add background music")
-    parser.add_argument("--bgm-track", type=str, default=None, help="BGM filename (default: random from assets/bgm)")
+    parser.add_argument("--bgm-track", type=str, default=None, help="BGM filename (default: rotate from assets/bgm)")
     parser.add_argument("--bgm-dir", type=str, default="assets/bgm", help="BGM directory")
+    parser.add_argument("--bgm-track-index", type=int, default=None, help="Rotate BGM: use files[index %% N] (loop if N>tracks)")
     parser.add_argument("--bgm-volume", type=int, default=-20, help="BGM volume in dB")
     parser.add_argument("--bgm-intro", type=int, default=4000, help="BGM intro delay (ms)")
     parser.add_argument("--bgm-tail", type=int, default=3000, help="BGM tail after speech (ms)")
@@ -158,6 +159,7 @@ Examples:
             specific_filename=args.bgm_track,
             tail_delay_ms=args.bgm_tail,
             speech_volume_db=args.speech_volume,
+            track_index=args.bgm_track_index,
         )
     elif args.speech_volume != 0:
         combined = combined + args.speech_volume

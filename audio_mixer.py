@@ -18,6 +18,7 @@ def mix_bgm(
     specific_filename: Optional[str] = None,
     tail_delay_ms: int = 3000,
     speech_volume_db: int = 0,
+    track_index: Optional[int] = None,
 ) -> AudioSegment:
     """
     Mixes speech audio with a background music track.
@@ -30,6 +31,7 @@ def mix_bgm(
         specific_filename: Optional filename to force use of a specific track.
         tail_delay_ms: How long the music plays after speech ends (ms).
         speech_volume_db: Volume adjustment for speech (e.g. 3 = louder, -3 = quieter). 0 = no change.
+        track_index: When set (and no specific_filename), rotate through tracks: files[index % len(files)].
 
     Returns:
         AudioSegment: The mixed audio.
@@ -47,11 +49,14 @@ def mix_bgm(
             print(f"⚠️ BGM file {specific_filename} not found in {bgm_dir}. Falling back to random.")
 
     if not bgm_file:
-        files = [f for f in os.listdir(bgm_dir) if f.lower().endswith((".mp3", ".wav", ".m4a"))]
+        files = sorted([f for f in os.listdir(bgm_dir) if f.lower().endswith((".mp3", ".wav", ".m4a"))])
         if not files:
             print(f"⚠️ No music files in {bgm_dir}. Skipping BGM.")
             return _apply_speech_volume(speech_audio, speech_volume_db)
-        bgm_file = random.choice(files)
+        if track_index is not None:
+            bgm_file = files[track_index % len(files)]  # rotate; loop if not enough
+        else:
+            bgm_file = random.choice(files)
 
     bgm_path = os.path.join(bgm_dir, bgm_file)
     print(f"🎵 Adding background music: {bgm_file} (BGM: {volume_db}dB, speech: {speech_volume_db}dB)")
@@ -61,6 +66,9 @@ def mix_bgm(
     except Exception as e:
         print(f"❌ Error loading BGM {bgm_file}: {e}")
         return _apply_speech_volume(speech_audio, speech_volume_db)
+
+    # Normalize BGM so rotated tracks have consistent volume (different sources = different levels)
+    bgm = _normalize_bgm(bgm)
 
     # Adjust BGM volume
     bgm = bgm + volume_db
@@ -83,6 +91,14 @@ def mix_bgm(
     # Overlay speech onto BGM
     final_mix = bgm.overlay(speech, position=intro_delay_ms)
     return final_mix
+
+
+def _normalize_bgm(audio: AudioSegment, target_dBFS: float = -18.0) -> AudioSegment:
+    """Normalize BGM to target RMS so rotated tracks have consistent volume."""
+    if audio.dBFS == float("-inf"):
+        return audio  # silence
+    change_db = target_dBFS - audio.dBFS
+    return audio.apply_gain(change_db)
 
 
 def _apply_speech_volume(audio: AudioSegment, volume_db: int) -> AudioSegment:

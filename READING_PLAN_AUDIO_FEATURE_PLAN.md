@@ -46,6 +46,10 @@ Use ffmpeg concat:
 **Speed:** `concat_daily.py` uses ffmpeg `atempo` for pitch-preserving speed (e.g. 2x).  
 **BGM output:** With `--bgm`, filenames get `-bgm` suffix so both versions coexist.
 
+**Speed (tried):** asetrate+aresample (2x but chipmunk pitch) ❌ → atempo (2x, pitch preserved) ✅.
+
+**BGM volume:** Rotated tracks are RMS-normalized to -18 dBFS before `--bgm-volume` so different sources don’t cause volume jumps.
+
 ---
 
 ## 5. Reading Plan DB Schema
