@@ -1,0 +1,26 @@
+# Bible audio assets (downloaded/generated, not in repo)
+/asset/bible/audio/
+
+# Generated daily MP3s
+/output/
+
+# BGM files (user adds their own; optional to exclude large files)
+# assets/bgm/*.mp3
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Common ignore patterns
+*.log
+.DS_Store
+Thumbs.db
