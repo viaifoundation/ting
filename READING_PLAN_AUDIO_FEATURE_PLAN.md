@@ -1,4 +1,4 @@
-# Bible Reading Plan Audio – Feature Plan
+# Ting – Bible Reading Plan Audio Generator: Feature Plan
 
 This document outlines the feature to generate Bible reading plan audio (MP3) from the Everest Audio Bible, arrange chapter-level files, and produce one combined MP3 per day of a reading plan.
 

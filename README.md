@@ -1,4 +1,4 @@
-# Ting – Bible Reading Plan Audio
+# Ting – Bible Reading Plan Audio Generator
 
 Tools for generating Bible reading plan audio (MP3) from the Everest Audio Bible.  
 Supports background music and volume adjustment (adapted from [devotion_tts](https://github.com/viaifoundation/devotion_tts)).
