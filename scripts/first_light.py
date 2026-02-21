@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Generate reading plan audio for a date range (default: today in Kiritimati).
-Creates both with- and without-BGM versions per day.
-Uses Pacific/Kiritimati (UTC+14) – the first timezone to see each new day.
+For each day in a date range: print plan content ([en], [zh_cn], [zh_tw]) and generate two MP3 files (plain + -bgm).
+1. Print plan content for all given days.
+2. Generate MP3 files (two per day: plain and -bgm).
+Default: today in Kiritimati (UTC+14) – the first timezone to see each new day.
 
 Usage:
   python scripts/first_light.py
@@ -12,7 +13,6 @@ Usage:
 """
 
 import argparse
-import json
 import subprocess
 import sys
 from datetime import date, datetime, timedelta
@@ -35,14 +35,6 @@ FIRST_TZ = zoneinfo.ZoneInfo("Pacific/Kiritimati")
 PLAN_FILENAME = {
     "chronological-1year": "历史读经第{i}天",
     "chronological-90days": "90天历史读经第{i}天",
-}
-PLAN_NAME_CN = {
-    "chronological-1year": "历史读经",
-    "chronological-90days": "90天历史读经",
-}
-PLAN_NAME_TW = {
-    "chronological-1year": "歷史讀經",
-    "chronological-90days": "90天歷史讀經",
 }
 
 
@@ -112,26 +104,30 @@ def main():
 
     generate = REPO_ROOT / "scripts" / "generate_plan_audio.py"
     name_fmt = PLAN_FILENAME.get(args.plan, "读经第{i}天")
-    plan_name_cn = PLAN_NAME_CN.get(args.plan, args.plan)
-    plan_name_tw = PLAN_NAME_TW.get(args.plan, args.plan)
 
+    # Collect valid days in range
+    days_to_generate = []
     d = start_date
     while d <= end_date:
         day_num = (d - plan_start).days + 1
-        if day_num < 1 or day_num > max_day:
-            d += timedelta(days=1)
-            continue
+        if 1 <= day_num <= max_day:
+            entry = entries_by_day.get(day_num)
+            if entry and entry.get("chapters"):
+                days_to_generate.append((d, day_num, entry["chapters"]))
+        d += timedelta(days=1)
 
-        entry = entries_by_day.get(day_num)
-        if not entry or not entry.get("chapters"):
-            d += timedelta(days=1)
-            continue
+    if not days_to_generate:
+        print("No valid days in date range.")
+        return 0
 
-        chapters = entry["chapters"]
+    # 1. Print plan content for all given days
+    print("\n" + "=" * 60, flush=True)
+    print("Plan content (given days)", flush=True)
+    print("=" * 60, flush=True)
+    for d, day_num, chapters in days_to_generate:
         zh_cn = chapters_to_chinese(chapters, BOOK_CHINESE)
         zh_tw = chapters_to_chinese(chapters, BOOK_CHINESE_TW)
         en = chapters_to_english(chapters)
-
         print(f"\n--- Day {day_num} ({d}) ---", flush=True)
         print("[en]", flush=True)
         print(f"Day {day_num} ({d}): {en}\n", flush=True)
@@ -140,6 +136,11 @@ def main():
         print("[zh_tw]", flush=True)
         print(f"第{day_num}天（{d}）：{zh_tw}\n", flush=True)
 
+    # 2. Generate MP3 files (two per day: plain and -bgm)
+    print("\n" + "=" * 60, flush=True)
+    print("Generating MP3 files...", flush=True)
+    print("=" * 60, flush=True)
+    for d, day_num, chapters in days_to_generate:
         base = [
             sys.executable, str(generate),
             args.plan,
@@ -150,14 +151,10 @@ def main():
             "--speech-volume", str(args.speech_volume),
             "--speed", str(args.speed),
         ]
-
         subprocess.run(base, check=True)
         subprocess.run(base + ["--bgm"], check=True)
-
         prefix = d.strftime("%Y%m%d")
-        print(f"✅ {prefix}_{name_fmt.format(i=day_num)}.mp3, {prefix}_{name_fmt.format(i=day_num)}-bgm.mp3")
-
-        d += timedelta(days=1)
+        print(f"✅ Day {day_num}: {prefix}_{name_fmt.format(i=day_num)}.mp3, {prefix}_{name_fmt.format(i=day_num)}-bgm.mp3", flush=True)
 
     print(f"\nDone. Output: {out_dir}")
     return 0
