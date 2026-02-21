@@ -6,12 +6,27 @@ Supports background music and volume adjustment (adapted from [devotion_tts](htt
 ## Setup
 
 ```bash
+# Clone and enter repo
+git clone https://github.com/viaifoundation/ting.git && cd ting
+
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# Activate venv (do this before running any script)
+source venv/bin/activate   # macOS/Linux
+# venv\Scripts\activate    # Windows
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
 Requires **ffmpeg** for pydub (mp3 support): `brew install ffmpeg` / `apt install ffmpeg`
+
+**Running commands:** Activate the venv first (`source venv/bin/activate`), then run any script from the repo root. Example:
+```bash
+source venv/bin/activate
+python scripts/first_light.py
+```
 
 ## Download chapter MP3s
 
@@ -91,6 +106,12 @@ Speed uses ffmpeg `atempo` (pitch preserved); `--speed 2` = 2x.
 ```bash
 python scripts/print_plan_cn.py chronological-1year 4           # First 4 days
 python scripts/print_plan_cn.py chronological-90days 4 2026-02-17   # With custom start date
+```
+
+**First light** – generate today's 90-day chronological reading (one day, both with and without BGM). Uses Kiritimati (Christmas Island) timezone (UTC+14), the first to see each new day:
+```bash
+python scripts/first_light.py
+python scripts/first_light.py --start-date 2026-02-17
 ```
 
 ## Layout
