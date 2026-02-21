@@ -20,6 +20,32 @@ BOOK_CHINESE = (
     "腓利门书", "希伯来书", "雅各书", "彼得前书", "彼得后书", "约翰一书", "约翰二书",
     "约翰三书", "犹大书", "启示录",
 )
+# English (ESV / standard), index 1-66
+BOOK_ENGLISH = (
+    "", "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy", "Joshua", "Judges",
+    "Ruth", "1 Samuel", "2 Samuel", "1 Kings", "2 Kings", "1 Chronicles", "2 Chronicles",
+    "Ezra", "Nehemiah", "Esther", "Job", "Psalms", "Proverbs", "Ecclesiastes", "Song of Solomon",
+    "Isaiah", "Jeremiah", "Lamentations", "Ezekiel", "Daniel", "Hosea", "Joel",
+    "Amos", "Obadiah", "Jonah", "Micah", "Nahum", "Habakkuk", "Zephaniah",
+    "Haggai", "Zechariah", "Malachi", "Matthew", "Mark", "Luke", "John",
+    "Acts", "Romans", "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians", "Philippians",
+    "Colossians", "1 Thessalonians", "2 Thessalonians", "1 Timothy", "2 Timothy", "Titus",
+    "Philemon", "Hebrews", "James", "1 Peter", "2 Peter", "1 John", "2 John",
+    "3 John", "Jude", "Revelation",
+)
+# Traditional Chinese (zh_TW), index 1-66
+BOOK_CHINESE_TW = (
+    "", "創世記", "出埃及記", "利未記", "民數記", "申命記", "約書亞記", "士師記",
+    "路得記", "撒母耳記上", "撒母耳記下", "列王紀上", "列王紀下", "歷代志上", "歷代志下",
+    "以斯拉記", "尼希米記", "以斯帖記", "約伯記", "詩篇", "箴言", "傳道書", "雅歌",
+    "以賽亞書", "耶利米書", "耶利米哀歌", "以西結書", "但以理書", "何西阿書", "約珥書",
+    "阿摩司書", "俄巴底亞書", "約拿書", "彌迦書", "那鴻書", "哈巴谷書", "西番雅書",
+    "哈該書", "撒迦利亞書", "瑪拉基書", "馬太福音", "馬可福音", "路加福音", "約翰福音",
+    "使徒行傳", "羅馬書", "哥林多前書", "哥林多後書", "加拉太書", "以弗所書", "腓立比書",
+    "歌羅西書", "帖撒羅尼迦前書", "帖撒羅尼迦後書", "提摩太前書", "提摩太後書", "提多書",
+    "腓利門書", "希伯來書", "雅各書", "彼得前書", "彼得後書", "約翰一書", "約翰二書",
+    "約翰三書", "猶大書", "啟示錄",
+)
 from pathlib import Path
 
 # Book name → number (1-66). Long names first for matching.
@@ -85,6 +111,48 @@ def _find_book(s: str) -> tuple[int | None, str]:
             rest = s[len(name):].strip()
             return BOOK_INDEX[name], rest
     return None, s
+
+
+def _chapters_to_str(
+    chapters: list[str], book_names: tuple, sep: str, joiner: str, space_before_ch: bool = False
+) -> str:
+    """Convert ['1:1','1:2','1:3'] to formatted string."""
+    if not chapters:
+        return ""
+    sp = " " if space_before_ch else ""
+    parts = []
+    i = 0
+    while i < len(chapters):
+        book_ch, ch_num = chapters[i].split(":")
+        book_num = int(book_ch)
+        ch_nums = [int(ch_num)]
+        j = i + 1
+        while j < len(chapters):
+            b, c = chapters[j].split(":")
+            if int(b) == book_num and int(c) == ch_nums[-1] + 1:
+                ch_nums.append(int(c))
+                j += 1
+            else:
+                break
+        i = j
+        name = book_names[book_num] if book_num < len(book_names) else str(book_num)
+        if len(ch_nums) == 1:
+            parts.append(f"{name}{sp}{ch_nums[0]}")
+        elif ch_nums == list(range(ch_nums[0], ch_nums[-1] + 1)):
+            parts.append(f"{name}{sp}{ch_nums[0]}-{ch_nums[-1]}")
+        else:
+            parts.append(f"{name}{sp}" + joiner.join(str(c) for c in ch_nums))
+    return sep.join(parts)
+
+
+def chapters_to_chinese(chapters: list[str], book_names: tuple = BOOK_CHINESE) -> str:
+    """Convert ['1:1','1:2','1:3'] -> '创世记1-3' (or Traditional with book_names=BOOK_CHINESE_TW)."""
+    return _chapters_to_str(chapters, book_names, "；", "、", space_before_ch=False)
+
+
+def chapters_to_english(chapters: list[str]) -> str:
+    """Convert ['1:1','1:2','1:3'] -> 'Genesis 1-3' (ESV book names)."""
+    return _chapters_to_str(chapters, BOOK_ENGLISH, "; ", ", ", space_before_ch=True)
 
 
 def parse_ref(text: str) -> list[tuple[int, int]]:

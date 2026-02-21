@@ -6,37 +6,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from plan_utils import BOOK_CHINESE, load_plan
-
-
-def chapters_to_chinese(chapters: list[str]) -> str:
-    """Convert ['1:1','1:2','1:3'] -> '创世记1-3' or '创世记1、2、3'."""
-    if not chapters:
-        return ""
-    # Group consecutive same-book chapters
-    parts = []
-    i = 0
-    while i < len(chapters):
-        book_ch, ch_num = chapters[i].split(":")
-        book_num = int(book_ch)
-        ch_nums = [int(ch_num)]
-        j = i + 1
-        while j < len(chapters):
-            b, c = chapters[j].split(":")
-            if int(b) == book_num and int(c) == ch_nums[-1] + 1:
-                ch_nums.append(int(c))
-                j += 1
-            else:
-                break
-        i = j
-        name = BOOK_CHINESE[book_num] if book_num < len(BOOK_CHINESE) else str(book_num)
-        if len(ch_nums) == 1:
-            parts.append(f"{name}{ch_nums[0]}")
-        elif ch_nums == list(range(ch_nums[0], ch_nums[-1] + 1)):
-            parts.append(f"{name}{ch_nums[0]}-{ch_nums[-1]}")
-        else:
-            parts.append(f"{name}" + "、".join(str(c) for c in ch_nums))
-    return "；".join(parts)
+from plan_utils import BOOK_CHINESE, load_plan, chapters_to_chinese
 
 
 def main():
@@ -57,7 +27,7 @@ def main():
         day = entry["day"]
         d = start_date + timedelta(days=day - 1)
         chapters = entry.get("chapters", [])
-        cn = chapters_to_chinese(chapters)
+        cn = chapters_to_chinese(chapters, BOOK_CHINESE)
         print(f"第{day}天（{d}）：{cn}\n")
 
     return 0

@@ -1,4 +1,4 @@
-# Ting – Bible Reading Plan Audio Generator
+# Ting (聽) – Bible Reading Plan Audio Generator
 
 Tools for generating Bible reading plan audio (MP3) from the Everest Audio Bible.  
 Supports background music and volume adjustment (adapted from [devotion_tts](https://github.com/viaifoundation/devotion_tts)).
@@ -108,11 +108,14 @@ python scripts/print_plan_cn.py chronological-1year 4           # First 4 days
 python scripts/print_plan_cn.py chronological-90days 4 2026-02-17   # With custom start date
 ```
 
-**First light** – generate today's 90-day chronological reading (one day, both with and without BGM). Uses Kiritimati (Christmas Island) timezone (UTC+14), the first to see each new day:
+**First light** – generate reading plan audio for a date range. Per day: prints plan content in [en] (ESV book names), [zh_cn], [zh_tw]; generates both with- and without-BGM. Uses Kiritimati (UTC+14) for "today" default.
 ```bash
-python scripts/first_light.py
-python scripts/first_light.py --start-date 2026-02-17
+python scripts/first_light.py                                    # today, 1 day
+python scripts/first_light.py --start-date 2026-02-27 --num-days 5
+python scripts/first_light.py --start-date 2026-03-01 --end-date 2026-03-05
+python scripts/first_light.py --plan chronological-1year --plan-start-date 2026-01-01
 ```
+Options: `--plan` (default chronological-90days), `--plan-start-date` (day 1), `--start-date`, `--end-date`, `--num-days`.
 
 ## Layout
 
