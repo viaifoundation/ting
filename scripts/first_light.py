@@ -51,7 +51,7 @@ def main():
     parser.add_argument(
         "--plan-start-date",
         type=str,
-        default="2026-02-27",
+        default="2026-02-17",
         help="Plan day 1 calendar date YYYY-MM-DD",
     )
     parser.add_argument(
@@ -117,8 +117,16 @@ def main():
         d += timedelta(days=1)
 
     if not days_to_generate:
-        print("No valid days in date range.")
-        return 0
+        first_d = start_date
+        day_num_first = (first_d - plan_start).days + 1
+        if day_num_first < 1:
+            print(f"Date range {start_date}..{end_date} is before plan start ({plan_start}).")
+            print(f"  Use --plan-start-date {start_date} to make {start_date} = day 1.")
+        elif day_num_first > max_day:
+            print(f"Date range {start_date}..{end_date} is past plan end (day {max_day}).")
+        else:
+            print("No valid days in date range.")
+        return 1
 
     # 1. Print plan content for all given days
     print("\n" + "=" * 60, flush=True)
