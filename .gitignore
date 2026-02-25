@@ -2,7 +2,7 @@
 /assets/bible/audio/
 
 # Generated daily MP3s
-/output/
+/audio/
 
 # BGM files (user adds their own; optional to exclude large files)
 # assets/bgm/*.mp3

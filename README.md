@@ -25,7 +25,7 @@ Requires **ffmpeg** for pydub (mp3 support): `brew install ffmpeg` / `apt instal
 **Running commands:** Activate the venv first (`source venv/bin/activate`), then run any script from the repo root. Example:
 ```bash
 source venv/bin/activate
-python scripts/first_light.py
+python scripts/firstlight.py
 ```
 
 ## Download chapter MP3s
@@ -87,18 +87,18 @@ python scripts/fetch_reading_plans.py --all      # Everything
 
 **Generate daily MP3s** (Everest volume is low; use `--speech-volume 4`):
 ```bash
-python scripts/generate_plan_audio.py chronological-1year -o output/chronological-1year --speech-volume 4
-python scripts/generate_plan_audio.py chronological-90days -o output/chronological-90days --speech-volume 4
+python scripts/generate_plan_audio.py chronological-1year -o audio/chronological-1year --speech-volume 4
+python scripts/generate_plan_audio.py chronological-90days -o audio/chronological-90days --speech-volume 4
 # Days 2–4 only
-python scripts/generate_plan_audio.py chronological-1year -o output/chronological-1year --start-day 2 --end-day 4 --speech-volume 4
+python scripts/generate_plan_audio.py chronological-1year -o audio/chronological-1year --start-day 2 --end-day 4 --speech-volume 4
 # Custom start date (default: 2026-02-17)
-python scripts/generate_plan_audio.py chronological-1year -o output/chronological-1year --start-date 2026-02-17 --speech-volume 4
+python scripts/generate_plan_audio.py chronological-1year -o audio/chronological-1year --start-date 2026-02-17 --speech-volume 4
 # 2x speed + BGM (add MP3/WAV files to assets/bgm/ first)
-python scripts/generate_plan_audio.py chronological-90days -o output/chronological-90days --speech-volume 4 --speed 2 --bgm
+python scripts/generate_plan_audio.py chronological-90days -o audio/chronological-90days --speech-volume 4 --speed 2 --bgm
 # Optionally add BGM only
-python scripts/generate_plan_audio.py chronological-1year -o output/chronological-1year --speech-volume 4 --bgm
+python scripts/generate_plan_audio.py chronological-1year -o audio/chronological-1year --speech-volume 4 --bgm
 ```
-Output: `YYYYMMDD_历史读经第N天.mp3` (historical 1-year) or `YYYYMMDD_90天历史读经第N天.mp3` (90-day). With `--bgm`, filenames get `-bgm` suffix (e.g. `YYYYMMDD_历史读经第1天-bgm.mp3`) so both versions coexist. Goes to `output/` (gitignored).
+Output: `YYYYMMDD_历史读经第N天.mp3` (historical 1-year) or `YYYYMMDD_90天历史读经第N天.mp3` (90-day). With `--bgm`, filenames get `-bgm` suffix (e.g. `YYYYMMDD_历史读经第1天-bgm.mp3`) so both versions coexist. Goes to `audio/` (gitignored).
 
 Speed uses ffmpeg `atempo` (pitch preserved); `--speed 2` = 2x.
 
@@ -108,18 +108,18 @@ python scripts/print_plan_cn.py chronological-1year 4           # First 4 days
 python scripts/print_plan_cn.py chronological-90days 4 2026-02-17   # With custom start date
 ```
 
-**First light** – generate reading plan audio for a date range. Per day: prints plan content in [en] (ESV book names), [zh_cn], [zh_tw]; **generates two MP3 files** (plain and `-bgm`). Uses Kiritimati (UTC+14) for "today" default.
+**First light** – generate reading plan audio for a date range. Per day: prints plan content in [en] (ESV book names), [zh_cn], [zh_tw]; **generates 6 MP3 files** (1x, 1.5x, 2x speeds × plain and `-bgm`; speed and BGM in filenames). Uses Kiritimati (UTC+14) for "today" default.
 ```bash
-python scripts/first_light.py                                    # today, 2 files
-python scripts/first_light.py --start-date 2026-02-27 --num-days 5
-python scripts/first_light.py --start-date 2026-03-01 --end-date 2026-03-05
-python scripts/first_light.py --plan chronological-1year --plan-start-date 2026-01-01
+python scripts/firstlight.py                                    # today, 6 files
+python scripts/firstlight.py --start-date 2026-02-27 --num-days 5
+python scripts/firstlight.py --start-date 2026-03-01 --end-date 2026-03-05
+python scripts/firstlight.py --plan chronological-1year --plan-start-date 2026-01-01
 ```
-Options: `--plan` (default chronological-90days), `--plan-start-date` (day 1), `--start-date`, `--end-date`, `--num-days`.
+Options: `--plan` (default chronological-90days), `--plan-start-date` (day 1), `--start-date`, `--end-date`, `--num-days`, `--speeds` (default 1,1.5,2).
 
-**Daily cron** – run at 00:05 Kiritimati (e.g. 10:05 UTC) to generate today's two MP3s:
+**Daily cron** – run at 00:05 Kiritimati (e.g. 10:05 UTC) to generate today's 6 MP3s:
 ```bash
-5 10 * * * cd /path/to/ting && source venv/bin/activate && python scripts/first_light.py
+5 10 * * * cd /path/to/ting && source venv/bin/activate && python scripts/firstlight.py
 ```
 
 ## Layout
@@ -128,7 +128,7 @@ Options: `--plan` (default chronological-90days), `--plan-start-date` (day 1), `
 - `assets/bible/audio/zips/` – downloaded ZIPs (gitignored)
 - `assets/bible/plans/` – reading plan JSON files
 - `assets/bgm/` – add your own BGM files (.mp3, .wav, .m4a). With `--bgm`, BGM rotates **per output file** by length: if the output is longer than one track, the next track is appended, and so on; when all tracks are used, the sequence loops. First track and rotation order are random for each file. Tracks are RMS-normalized for consistent volume.
-- `output/` – generated daily MP3s (gitignored)
+- `audio/` – generated daily MP3s (gitignored)
 - See `READING_PLAN_AUDIO_FEATURE_PLAN.md` for full feature plan
 
 ## Audio processing: what we tried

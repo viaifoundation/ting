@@ -2,8 +2,8 @@
 """
 Generate daily MP3s for a reading plan.
 Usage:
-  python scripts/generate_plan_audio.py chronological-1year -o output/
-  python scripts/generate_plan_audio.py ninety-day-challenge -o output/ --speech-volume 4
+  python scripts/generate_plan_audio.py chronological-1year -o audio/
+  python scripts/generate_plan_audio.py ninety-day-challenge -o audio/ --speech-volume 4
 """
 
 import argparse
@@ -67,6 +67,9 @@ def main():
         d = start_date + timedelta(days=day - 1)
         prefix = d.strftime("%Y%m%d")  # YYYYMMDD
         name = f"{prefix}_{name_fmt.format(i=day)}"
+        # Speed in filename: 1.0 -> 1x, 1.5 -> 1.5x, 2.0 -> 2x
+        speed_str = f"{int(args.speed)}x" if args.speed == int(args.speed) else f"{args.speed}x"
+        name += f"-{speed_str}"
         if args.bgm:
             name += "-bgm"
         out_file = out_dir / f"{name}.mp3"

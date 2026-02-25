@@ -125,14 +125,14 @@ def fetch_bible_com_chronological_90() -> dict:
             chapters = parse_day_text("; ".join(f"{b} {c}" for b, c in refs))
         else:
             # Fallback: look for GEN.1 style in hrefs
-            refs2 = re.findall(r"/(GEN|EXOD|LEV|NUM|DEUT|JOSH|JDG|RUTH|1SAM|2SAM|1KGS|2KGS|"
+            refs2 = re.findall(r"/(GEN|EXO|EXOD|LEV|NUM|DEUT|JOSH|JDG|RUTH|1SAM|2SAM|1KGS|2KGS|"
                                r"1CHR|2CHR|EZRA|NEH|ESTH|JOB|PS|PROV|ECCL|SONG|ISA|JER|"
                                r"LAM|EZK|DAN|HOS|JOEL|AMOS|OBA|JON|MIC|NAH|HAB|ZEP|HAG|"
                                r"ZEC|MAL|MATT|MARK|LUKE|JOHN|ACTS|ROM|1CO|2CO|GAL|EPH|"
                                r"PHP|COL|1TH|2TH|1TI|2TI|TIT|PHM|HEB|JAS|1PE|2PE|1JN|2JN|3JN|"
                                r"JUDE|REV)\.(\d+)\.", html, re.I)
             abbr_to_num = {
-                "GEN": 1, "EXOD": 2, "LEV": 3, "NUM": 4, "DEUT": 5, "JOSH": 6,
+                "GEN": 1, "EXO": 2, "EXOD": 2, "LEV": 3, "NUM": 4, "DEUT": 5, "JOSH": 6,
                 "JDG": 7, "RUTH": 8, "1SAM": 9, "2SAM": 10, "1KGS": 11, "2KGS": 12,
                 "1CHR": 13, "2CHR": 14, "EZRA": 15, "NEH": 16, "ESTH": 17, "JOB": 18,
                 "PS": 19, "PROV": 20, "ECCL": 21, "SONG": 22, "ISA": 23, "JER": 24,
