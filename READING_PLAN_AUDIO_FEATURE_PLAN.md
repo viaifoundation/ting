@@ -44,13 +44,13 @@ Use ffmpeg concat:
 `ffmpeg -f concat -safe 0 -i list.txt -c copy day_N.mp3`
 
 **Speed:** `concat_daily.py` uses ffmpeg `atempo` for pitch-preserving speed (e.g. 2x).  
-**BGM output:** With `--bgm`, filenames get `-bgm` suffix so both versions coexist.
+**BGM output:** With `--bgm` and `--bgm-splits`, filenames use Chinese suffixes (原速上/中/下, 加速上/下, 倍速). Underscore separators.
 
 **Speed (tried):** asetrate+aresample (2x but chipmunk pitch) ❌ → atempo (2x, pitch preserved) ✅.
 
 **BGM rotation:** Per output file by length. If output > one track, append next (random order); when all used, loop. First track and sequence random. Tracks RMS-normalized to -18 dBFS before `--bgm-volume` so different sources don’t cause volume jumps.
 
-**First light:** `firstlight.py` generates for a date range; per day prints plan content in [en] (ESV), [zh_cn], [zh_tw] blocks, then 6 MP3s (1x, 1.5x, 2x × plain and -bgm; speed and BGM in filenames).
+**First light:** `firstlight.py` generates for a date range; per day prints plan content in [en] (ESV), [zh_cn], [zh_tw] blocks, then 7 MP3s: 1 plain (1x), 3 BGM 1x (原速上/中/下), 2 BGM 1.5x (加速上/下), 1 BGM 2x (倍速). Underscore separators, Chinese suffixes.
 
 ---
 

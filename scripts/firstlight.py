@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 For each day in a date range: print plan content ([en], [zh_cn], [zh_tw]) and generate MP3 files.
-By default: 6 versions per day (1x, 1.5x, 2x speeds × plain and -bgm). Speed and BGM are in filenames.
+Per day: 1 plain (1x), 3 BGM at 1x (原速上/中/下), 2 BGM at 1.5x (加速上/下), 1 BGM at 2x (倍速).
+Plain: single file; BGM split into smaller files for easier download.
 Default: today in Kiritimati (UTC+14) – the first timezone to see each new day.
 
 Usage:
@@ -68,12 +69,6 @@ def main():
     )
     parser.add_argument("-o", "--output", type=str, default=None)
     parser.add_argument("--speech-volume", type=int, default=4)
-    parser.add_argument(
-        "--speeds",
-        type=str,
-        default="1,1.5,2",
-        help="Comma-separated speeds (e.g. 1,1.5,2); included in filenames (default: 1,1.5,2 = 6 versions/day)",
-    )
     args = parser.parse_args()
 
     plan_start = date.fromisoformat(args.plan_start_date)
@@ -148,29 +143,27 @@ def main():
         print("[zh_tw]", flush=True)
         print(f"第{day_num}天（{d}）：{zh_tw}\n", flush=True)
 
-    # 2. Generate MP3 files: for each speed, plain and -bgm (speed and BGM in filenames)
-    speeds = [float(s.strip()) for s in args.speeds.split(",") if s.strip()]
-    if not speeds:
-        speeds = [1.0, 1.5, 2.0]
+    # 2. Generate MP3 files: plain 1x, BGM 1x(3) + 1.5x(2) + 2x(1)
     print("\n" + "=" * 60, flush=True)
     print("Generating MP3 files...", flush=True)
     print("=" * 60, flush=True)
     for d, day_num, chapters in days_to_generate:
-        for speed in speeds:
-            base = [
-                sys.executable, str(generate),
-                args.plan,
-                "-o", str(out_dir),
-                "--start-date", args.plan_start_date,
-                "--start-day", str(day_num),
-                "--end-day", str(day_num),
-                "--speech-volume", str(args.speech_volume),
-                "--speed", str(speed),
-            ]
-            subprocess.run(base, check=True)
-            subprocess.run(base + ["--bgm"], check=True)
-        speed_str = ", ".join(f"{int(s)}x" if s == int(s) else f"{s}x" for s in speeds)
-        print(f"✅ Day {day_num}: {speed_str} (plain + bgm each)", flush=True)
+        base = [
+            sys.executable, str(generate),
+            args.plan,
+            "-o", str(out_dir),
+            "--start-date", args.plan_start_date,
+            "--start-day", str(day_num),
+            "--end-day", str(day_num),
+            "--speech-volume", str(args.speech_volume),
+        ]
+        # Plain: 1x only (users can adjust playback speed)
+        subprocess.run(base + ["--speed", "1"], check=True)
+        # BGM: 1x (3 splits), 1.5x (2 splits), 2x (1 split)
+        subprocess.run(base + ["--speed", "1", "--bgm", "--bgm-splits", "3"], check=True)
+        subprocess.run(base + ["--speed", "1.5", "--bgm", "--bgm-splits", "2"], check=True)
+        subprocess.run(base + ["--speed", "2", "--bgm", "--bgm-splits", "1"], check=True)
+        print(f"✅ Day {day_num}: plain + 原速(3) + 加速(2) + 倍速", flush=True)
 
     print(f"\nDone. Output: {out_dir}")
     return 0
