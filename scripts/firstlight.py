@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
 For each day in a date range: print plan content ([en], [zh_cn], [zh_tw]) and generate MP3 files.
-Per day: 1 plain (1x), 3 BGM at 1x (原速上/中/下), 2 BGM at 1.5x (加速上/下), 1 BGM at 2x (倍速).
+--preset 1 (default): 3 files (1.5x + 2x BGM only)
+--preset 2: 4 files (1x plain + 1x BGM)
+--preset 3: 7 files (all)
 Plain: single file; BGM split into smaller files for easier download.
 Default: today in Kiritimati (UTC+14) – the first timezone to see each new day.
 
@@ -10,6 +12,7 @@ Usage:
   python scripts/firstlight.py --start-date 2026-02-27 --num-days 5
   python scripts/firstlight.py --start-date 2026-03-01 --end-date 2026-03-05
   python scripts/firstlight.py --plan chronological-1year --plan-start-date 2026-01-01
+  python scripts/firstlight.py --preset 3   # all 7 files
 """
 
 import argparse
@@ -69,6 +72,13 @@ def main():
     )
     parser.add_argument("-o", "--output", type=str, default=None)
     parser.add_argument("--speech-volume", type=int, default=4)
+    parser.add_argument(
+        "--preset",
+        type=int,
+        choices=[1, 2, 3],
+        default=1,
+        help="1=3 files (1.5x+2x BGM), 2=4 files (1x plain+BGM), 3=7 files (all); default 1",
+    )
     args = parser.parse_args()
 
     plan_start = date.fromisoformat(args.plan_start_date)
@@ -143,7 +153,8 @@ def main():
         print("[zh_tw]", flush=True)
         print(f"第{day_num}天（{d}）：{zh_tw}\n", flush=True)
 
-    # 2. Generate MP3 files: plain 1x, BGM 1x(3) + 1.5x(2) + 2x(1)
+    # 2. Generate MP3 files (preset controls which)
+    preset = args.preset
     print("\n" + "=" * 60, flush=True)
     print("Generating MP3 files...", flush=True)
     print("=" * 60, flush=True)
@@ -157,13 +168,18 @@ def main():
             "--end-day", str(day_num),
             "--speech-volume", str(args.speech_volume),
         ]
-        # Plain: 1x only (users can adjust playback speed)
-        subprocess.run(base + ["--speed", "1"], check=True)
-        # BGM: 1x (3 splits), 1.5x (2 splits), 2x (1 split)
-        subprocess.run(base + ["--speed", "1", "--bgm", "--bgm-splits", "3"], check=True)
-        subprocess.run(base + ["--speed", "1.5", "--bgm", "--bgm-splits", "2"], check=True)
-        subprocess.run(base + ["--speed", "2", "--bgm", "--bgm-splits", "1"], check=True)
-        print(f"✅ Day {day_num}: plain + 原速(3) + 加速(2) + 倍速", flush=True)
+        done = []
+        if preset in (2, 3):
+            subprocess.run(base + ["--speed", "1"], check=True)
+            done.append("plain")
+        if preset in (2, 3):
+            subprocess.run(base + ["--speed", "1", "--bgm", "--bgm-splits", "3"], check=True)
+            done.append("原速(3)")
+        if preset in (1, 3):
+            subprocess.run(base + ["--speed", "1.5", "--bgm", "--bgm-splits", "2"], check=True)
+            subprocess.run(base + ["--speed", "2", "--bgm", "--bgm-splits", "1"], check=True)
+            done.extend(["加速(2)", "倍速"])
+        print(f"✅ Day {day_num}: {' + '.join(done)}", flush=True)
 
     print(f"\nDone. Output: {out_dir}")
     return 0
