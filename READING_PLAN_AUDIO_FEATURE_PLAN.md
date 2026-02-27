@@ -50,7 +50,7 @@ Use ffmpeg concat:
 
 **BGM rotation:** Per output file by length. If output > one track, append next (random order); when all used, loop. First track and sequence random. Tracks RMS-normalized to -18 dBFS before `--bgm-volume` so different sources don’t cause volume jumps.
 
-**First light:** `firstlight.py` generates for a date range; per day prints plan content in [en] (ESV), [zh_cn], [zh_tw] blocks, then MP3s per `--preset`: 1 (default)=3 files (1.5x+2x BGM), 2=4 files (1x plain+BGM), 3=7 files (all). Underscore separators, Chinese suffixes.
+**First light:** `firstlight.py` generates for a date range; per day prints plan content in [en] (ESV), [zh_cn], [zh_tw] blocks, then MP3s per `--preset`: 1 (default)=4 files (1x plain+1.5x+2x BGM), 2=4 files (1x plain+BGM), 3=7 files (all). Underscore separators, Chinese suffixes.
 
 ---
 

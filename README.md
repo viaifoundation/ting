@@ -110,17 +110,17 @@ python scripts/print_plan_cn.py chronological-90days 4 2026-02-17   # With custo
 
 **First light** – generate reading plan audio for a date range. Per day: prints plan content in [en] (ESV book names), [zh_cn], [zh_tw]; generates MP3 files per `--preset`. BGM split into smaller files for easier download. Uses Kiritimati (UTC+14) for "today" default.
 ```bash
-python scripts/firstlight.py                                    # today, preset 1 (3 files)
+python scripts/firstlight.py                                    # today, preset 1 (4 files)
 python scripts/firstlight.py --start-date 2026-02-27 --num-days 5
 python scripts/firstlight.py --start-date 2026-03-01 --end-date 2026-03-05
 python scripts/firstlight.py --plan chronological-1year --plan-start-date 2026-01-01
 python scripts/firstlight.py --preset 3                        # all 7 files
 ```
-**Presets:** 1 (default)=3 files (1.5x+2x BGM), 2=4 files (1x plain+BGM), 3=7 files (all).
+**Presets:** 1 (default)=4 files (1x plain+1.5x+2x BGM), 2=4 files (1x plain+BGM), 3=7 files (all).
 
 Options: `--plan` (default chronological-90days), `--plan-start-date` (day 1), `--start-date`, `--end-date`, `--num-days` (if both `--end-date` and `--num-days` given, `--end-date` wins), `--preset`.
 
-**Daily cron** – run at 00:05 Kiritimati (e.g. 10:05 UTC) to generate today's MP3s (preset 1 = 3 files):
+**Daily cron** – run at 00:05 Kiritimati (e.g. 10:05 UTC) to generate today's MP3s (preset 1 = 4 files):
 ```bash
 5 10 * * * cd /path/to/ting && source venv/bin/activate && python scripts/firstlight.py
 ```

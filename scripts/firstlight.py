@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 For each day in a date range: print plan content ([en], [zh_cn], [zh_tw]) and generate MP3 files.
---preset 1 (default): 3 files (1.5x + 2x BGM only)
+--preset 1 (default): 4 files (1x plain + 1.5x BGM + 2x BGM)
 --preset 2: 4 files (1x plain + 1x BGM)
 --preset 3: 7 files (all)
 Plain: single file; BGM split into smaller files for easier download.
@@ -77,7 +77,7 @@ def main():
         type=int,
         choices=[1, 2, 3],
         default=1,
-        help="1=3 files (1.5x+2x BGM), 2=4 files (1x plain+BGM), 3=7 files (all); default 1",
+        help="1=4 files (1x plain+1.5x+2x BGM), 2=4 files (1x plain+BGM), 3=7 files (all); default 1",
     )
     args = parser.parse_args()
 
@@ -169,7 +169,7 @@ def main():
             "--speech-volume", str(args.speech_volume),
         ]
         done = []
-        if preset in (2, 3):
+        if preset in (1, 2, 3):
             subprocess.run(base + ["--speed", "1"], check=True)
             done.append("plain")
         if preset in (2, 3):
