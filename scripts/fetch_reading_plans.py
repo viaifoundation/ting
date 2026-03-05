@@ -17,6 +17,7 @@ Top 10 popular yearly plans (365 days), ranked by popularity/recognition:
 import json
 import re
 import sys
+import time
 from pathlib import Path
 
 import requests
@@ -107,9 +108,22 @@ def fetch_bible_com_chronological_90() -> dict:
     entries = []
     for day in range(1, 91):
         url = f"{base}/{day}"
-        r = requests.get(url, timeout=30)
-        r.raise_for_status()
-        html = r.text
+        html = None
+        for attempt in range(3):
+            try:
+                r = requests.get(url, timeout=30)
+                r.raise_for_status()
+                html = r.text
+                break
+            except requests.RequestException as e:
+                if attempt < 2:
+                    time.sleep(2 * (attempt + 1))
+                else:
+                    print(f"\n  Day {day}: fetch failed ({e}), using empty")
+                    entries.append({"day": day, "chapters": []})
+                    break
+        if html is None:
+            continue
         # Extract scripture links: [Genesis 1](url) pattern
         refs = re.findall(r"\[(Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|"
                           r"Judges|Ruth|1 Samuel|2 Samuel|1 Kings|2 Kings|1 Chronicles|2 Chronicles|"
@@ -124,25 +138,35 @@ def fetch_bible_com_chronological_90() -> dict:
         if refs:
             chapters = parse_day_text("; ".join(f"{b} {c}" for b, c in refs))
         else:
-            # Fallback: look for GEN.1 style in hrefs
-            refs2 = re.findall(r"/(GEN|EXO|EXOD|LEV|NUM|DEUT|JOSH|JDG|RUTH|1SAM|2SAM|1KGS|2KGS|"
-                               r"1CHR|2CHR|EZRA|NEH|ESTH|JOB|PS|PROV|ECCL|SONG|ISA|JER|"
-                               r"LAM|EZK|DAN|HOS|JOEL|AMOS|OBA|JON|MIC|NAH|HAB|ZEP|HAG|"
-                               r"ZEC|MAL|MATT|MARK|LUKE|JOHN|ACTS|ROM|1CO|2CO|GAL|EPH|"
-                               r"PHP|COL|1TH|2TH|1TI|2TI|TIT|PHM|HEB|JAS|1PE|2PE|1JN|2JN|3JN|"
-                               r"JUDE|REV)\.(\d+)\.", html, re.I)
+            # Fallback: look for GEN.1 style in hrefs (YouVersion + bibleengine variants)
+            # YouVersion: gen,exo,lev,num,deu,jos,jdg,rut,1sa,2sa,1ki,2ki,1ch,2ch,ezr,neh,est,job,psa,pro,ecc,sng,isa,jer,lam,ezk,dan,hos,jol,amo,oba,jon,mic,nam,hab,zep,hag,zec,mal,mat,mrk,lke,jhn,act,rom,1co,2co,gal,eph,php,col,1th,2th,1ti,2ti,tit,phm,heb,jas,1pe,2pe,1jn,2jn,3jn,jud,rev
+            # Note: YouVersion uses LKE for Luke, NAM for Nahum
+            refs2 = re.findall(
+                r"/(GEN|EXO|EXOD|LEV|NUM|DEUT|DEU|JOSH|JOS|JDG|RUTH|RUT|"
+                r"1SAM|1SA|2SAM|2SA|1KGS|1KI|2KGS|2KI|1CHR|1CH|2CHR|2CH|"
+                r"EZRA|EZR|NEH|ESTH|EST|JOB|PS|PSA|PROV|PRO|ECCL|ECC|SONG|SNG|"
+                r"ISA|JER|LAM|EZK|DAN|HOS|JOEL|JOL|AMOS|AMO|OBA|JON|MIC|NAH|NAM|HAB|ZEP|HAG|ZEC|MAL|"
+                r"MATT|MAT|MARK|MRK|LUKE|LUK|LKE|JOHN|JHN|ACTS|ACT|ROM|"
+                r"1CO|2CO|GAL|EPH|PHP|COL|1TH|2TH|1TI|2TI|TIT|PHM|HEB|JAS|"
+                r"1PE|2PE|1JN|2JN|3JN|JUDE|JUD|REV)\.(\d+)\.",
+                html, re.I
+            )
             abbr_to_num = {
-                "GEN": 1, "EXO": 2, "EXOD": 2, "LEV": 3, "NUM": 4, "DEUT": 5, "JOSH": 6,
-                "JDG": 7, "RUTH": 8, "1SAM": 9, "2SAM": 10, "1KGS": 11, "2KGS": 12,
-                "1CHR": 13, "2CHR": 14, "EZRA": 15, "NEH": 16, "ESTH": 17, "JOB": 18,
-                "PS": 19, "PROV": 20, "ECCL": 21, "SONG": 22, "ISA": 23, "JER": 24,
-                "LAM": 25, "EZK": 26, "DAN": 27, "HOS": 28, "JOEL": 29, "AMOS": 30,
-                "OBA": 31, "JON": 32, "MIC": 33, "NAH": 34, "HAB": 35, "ZEP": 36,
-                "HAG": 37, "ZEC": 38, "MAL": 39, "MATT": 40, "MARK": 41, "LUKE": 42,
-                "JOHN": 43, "ACTS": 44, "ROM": 45, "1CO": 46, "2CO": 47, "GAL": 48,
-                "EPH": 49, "PHP": 50, "COL": 51, "1TH": 52, "2TH": 53, "1TI": 54,
-                "2TI": 55, "TIT": 56, "PHM": 57, "HEB": 58, "JAS": 59, "1PE": 60,
-                "2PE": 61, "1JN": 62, "2JN": 63, "3JN": 64, "JUDE": 65, "REV": 66,
+                "GEN": 1, "EXO": 2, "EXOD": 2, "LEV": 3, "NUM": 4, "DEUT": 5, "DEU": 5,
+                "JOSH": 6, "JOS": 6, "JDG": 7, "RUTH": 8, "RUT": 8,
+                "1SAM": 9, "1SA": 9, "2SAM": 10, "2SA": 10, "1KGS": 11, "1KI": 11, "2KGS": 12, "2KI": 12,
+                "1CHR": 13, "1CH": 13, "2CHR": 14, "2CH": 14, "EZRA": 15, "EZR": 15,
+                "NEH": 16, "ESTH": 17, "EST": 17, "JOB": 18, "PS": 19, "PSA": 19,
+                "PROV": 20, "PRO": 20, "ECCL": 21, "ECC": 21, "SONG": 22, "SNG": 22,
+                "ISA": 23, "JER": 24, "LAM": 25, "EZK": 26, "DAN": 27, "HOS": 28,
+                "JOEL": 29, "JOL": 29, "AMOS": 30, "AMO": 30, "OBA": 31, "JON": 32,
+                "MIC": 33, "NAH": 34, "NAM": 34, "HAB": 35, "ZEP": 36, "HAG": 37,
+                "ZEC": 38, "MAL": 39, "MATT": 40, "MAT": 40, "MARK": 41, "MRK": 41,
+                "LUKE": 42, "LUK": 42, "LKE": 42, "JOHN": 43, "JHN": 43, "ACTS": 44, "ACT": 44,
+                "ROM": 45, "1CO": 46, "2CO": 47, "GAL": 48, "EPH": 49, "PHP": 50,
+                "COL": 51, "1TH": 52, "2TH": 53, "1TI": 54, "2TI": 55, "TIT": 56,
+                "PHM": 57, "HEB": 58, "JAS": 59, "1PE": 60, "2PE": 61, "1JN": 62, "2JN": 63, "3JN": 64,
+                "JUDE": 65, "JUD": 65, "REV": 66,
             }
             chapters = [f"{abbr_to_num.get(a.upper(), 0)}:{c}" for a, c in refs2
                        if a.upper() in abbr_to_num]

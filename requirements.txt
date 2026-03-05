@@ -1,3 +1,7 @@
-requests>=2.28.0
-pydub>=0.25.1
-audioop-lts  # Required for pydub on Python 3.13+ (audioop was removed from stdlib)
+# Core dependencies for the ting Bible audio generator
+requests>=2.28.0                # For fetching any external resources if needed (though mostly local)
+pydub>=0.25.1                   # Audio manipulation: concatenation, volume, mixing BGM
+
+# Conditional backport for audioop (used internally by pydub for raw audio ops)
+# Only required when built-in audioop is removed (Python 3.13+)
+audioop-lts; python_version >= '3.13'

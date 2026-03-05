@@ -12,10 +12,12 @@ Requires: pydub, ffmpeg (for pydub mp3 support).
 """
 
 import argparse
+import time
 from pathlib import Path
 
 import subprocess
 import tempfile
+import json
 from pydub import AudioSegment
 
 # Import from repo root
@@ -49,6 +51,23 @@ def _speedup_ffmpeg(seg: AudioSegment, speed: float) -> AudioSegment:
     finally:
         Path(tmp_in).unlink(missing_ok=True)
         Path(tmp_out).unlink(missing_ok=True)
+
+
+def _load_mp3(path: Path, max_retries: int = 2) -> AudioSegment:
+    """Load MP3 with retry for intermittent ffprobe JSONDecodeError."""
+    last_err = None
+    for attempt in range(max_retries):
+        try:
+            return AudioSegment.from_mp3(str(path))
+        except json.JSONDecodeError as e:
+            last_err = e
+            if attempt < max_retries - 1:
+                time.sleep(0.5 * (attempt + 1))
+            else:
+                raise RuntimeError(
+                    f"Failed to load {path}: ffprobe returned invalid output (try re-downloading the chapter)"
+                ) from e
+    raise last_err
 
 
 def parse_chapters(spec: str):
@@ -134,7 +153,7 @@ Examples:
         if not path.exists():
             print(f"⚠️ Missing: {path}")
             continue
-        seg = AudioSegment.from_mp3(path)
+        seg = _load_mp3(path)
         combined += seg + silence
 
     if len(combined) == 0:
