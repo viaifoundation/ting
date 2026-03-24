@@ -19,6 +19,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 PLAN_FILENAME = {
     "chronological-1year": "历史读经第{i}天",
     "chronological-90days": "90天历史读经第{i}天",
+    "psalms-30days": "赞美诗篇第{i}天",
+
 }
 PLANS_DIR = REPO_ROOT / "assets" / "bible" / "plans"
 CONCAT_SCRIPT = REPO_ROOT / "scripts" / "concat_daily.py"
@@ -60,6 +62,8 @@ def main():
     parser.add_argument("-o", "--output", required=True, help="Output directory")
     parser.add_argument("--speech-volume", type=int, default=4,
                         help="Boost speech volume in dB (Everest is quiet, default 4)")
+    parser.add_argument("--use-tts", action="store_true", help="Use TTS audio instead of Everest")
+    parser.add_argument("--interleave-tts", action="store_true", help="Interleave Everest and TTS chapters")
     parser.add_argument("--bgm", action="store_true", help="Add background music")
     parser.add_argument("--bgm-volume", type=int, default=-20)
     parser.add_argument("--speed", type=float, default=1.0, help="Playback speed (e.g. 2.0 = 2x)")
@@ -115,6 +119,10 @@ def main():
                 ]
                 if args.speed > 1.0:
                     cmd.extend(["--speed", str(args.speed)])
+                if args.use_tts:
+                    cmd.append("--use-tts")
+                if args.interleave_tts:
+                    cmd.append("--interleave-tts")
                 subprocess.run(cmd, check=True)
                 print(f"Day {day}: {out_file.name}")
         else:
@@ -129,6 +137,10 @@ def main():
             ]
             if args.speed > 1.0:
                 cmd.extend(["--speed", str(args.speed)])
+            if args.use_tts:
+                cmd.append("--use-tts")
+            if args.interleave_tts:
+                cmd.append("--interleave-tts")
             subprocess.run(cmd, check=True)
             print(f"Day {day}: {out_file.name}")
 

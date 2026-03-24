@@ -120,6 +120,12 @@ python scripts/firstlight.py --preset 3                        # all 7 files
 
 Options: `--plan` (default chronological-90days), `--plan-start-date` (day 1), `--start-date`, `--end-date`, `--num-days` (if both `--end-date` and `--num-days` given, `--end-date` wins), `--preset`.
 
+**Praise with Psalms** – exactly like firstlight, but defaults seamlessly to the `psalms-30days` reading plan, starting today. Supports the same options, including the new TTS engine!
+```bash
+python scripts/praisewithpsalms.py --use-tts            # generates today's Psalms TTS audio
+python scripts/praisewithpsalms.py --preset 2           # generates today's Psalms Everest audio with BGM
+```
+
 **Daily cron** – run at 00:05 Kiritimati (e.g. 10:05 UTC) to generate today's MP3s (preset 1 = 4 files):
 ```bash
 5 10 * * * cd /path/to/ting && source venv/bin/activate && python scripts/firstlight.py

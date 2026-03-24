@@ -101,6 +101,8 @@ Examples:
     parser.add_argument("--chapters-file", "-f", type=str, help="File with one book:chapter per line")
     parser.add_argument("--output", "-o", type=str, required=True, help="Output MP3 path")
     parser.add_argument("--chapters-dir", type=str, default=None, help="Chapters dir (default: assets/bible/audio/chapters)")
+    parser.add_argument("--use-tts", action="store_true", help="Use TTS chapters instead of Everest")
+    parser.add_argument("--interleave-tts", action="store_true", help="Interleave Everest and TTS chapters (Everest then TTS)")
     parser.add_argument("--gap-ms", type=int, default=500, help="Silence between chapters (ms)")
 
     # BGM
@@ -133,15 +135,22 @@ Examples:
 
     # Paths
     repo_root = Path(__file__).resolve().parent.parent
-    chapters_dir = Path(args.chapters_dir) if args.chapters_dir else repo_root / "assets" / "bible" / "audio" / "chapters"
+    default_dir = "chapters_tts" if args.use_tts else "chapters"
+    chapters_dir = Path(args.chapters_dir) if args.chapters_dir else repo_root / "assets" / "bible" / "audio" / default_dir
     output_path = Path(args.output)
     if not output_path.is_absolute():
         output_path = repo_root / output_path
 
-    if not chapters_dir.exists():
+    if not args.interleave_tts and not chapters_dir.exists():
         print(f"❌ Chapters directory not found: {chapters_dir}")
-        print("   Run: python scripts/download_everest_audio.py")
+        if args.use_tts:
+            print("   Run: python scripts/generate_psalms_tts.py")
+        else:
+            print("   Run: python scripts/download_everest_audio.py")
         return 1
+
+    tts_dir = repo_root / "assets" / "bible" / "audio" / "chapters_tts"
+    everest_dir = repo_root / "assets" / "bible" / "audio" / "chapters"
 
     # Load and concatenate
     combined = AudioSegment.empty()
@@ -149,12 +158,48 @@ Examples:
 
     for book, chapter in pairs:
         fname = f"{book:03d}_{chapter:03d}.mp3"
-        path = chapters_dir / fname
-        if not path.exists():
-            print(f"⚠️ Missing: {path}")
-            continue
-        seg = _load_mp3(path)
-        combined += seg + silence
+        
+        if args.interleave_tts:
+            # 1. Everest
+            path_ev = everest_dir / fname
+            if path_ev.exists():
+                seg_ev = _load_mp3(path_ev)
+                if args.speed > 1.0:
+                    seg_ev = _speedup_ffmpeg(seg_ev, args.speed)
+                combined += seg_ev + silence
+            else:
+                print(f"⚠️ Missing Everest: {path_ev}")
+                
+            # 2. TTS
+            path_tts = tts_dir / fname
+            if not path_tts.exists():
+                print(f"  Generating missing TTS on the fly: {fname}")
+                subprocess.run([
+                    sys.executable, str(repo_root / "scripts" / "generate_psalms_tts.py"),
+                    "--book", str(book), "--start", str(chapter), "--end", str(chapter)
+                ], check=False)
+            
+            if path_tts.exists():
+                combined += _load_mp3(path_tts) + silence
+            else:
+                print(f"⚠️ Missing TTS (Generation failed): {path_tts}")
+        else:
+            path = chapters_dir / fname
+            if not path.exists() and args.use_tts:
+                print(f"  Generating missing TTS on the fly: {fname}")
+                subprocess.run([
+                    sys.executable, str(repo_root / "scripts" / "generate_psalms_tts.py"),
+                    "--book", str(book), "--start", str(chapter), "--end", str(chapter)
+                ], check=False)
+                
+            if not path.exists():
+                print(f"⚠️ Missing: {path}")
+                continue
+            seg = _load_mp3(path)
+            # Apply speed ONLY if it is Everest audio (not TTS)
+            if args.speed > 1.0 and not args.use_tts:
+                seg = _speedup_ffmpeg(seg, args.speed)
+            combined += seg + silence
 
     if len(combined) == 0:
         print("❌ No chapters loaded")
@@ -162,10 +207,6 @@ Examples:
 
     # Trim trailing silence
     combined = combined[:-args.gap_ms] if args.gap_ms > 0 else combined
-
-    # Apply speed (use ffmpeg atempo - pydub speedup is very slow for long audio)
-    if args.speed > 1.0:
-        combined = _speedup_ffmpeg(combined, args.speed)
 
     # Apply BGM or speech volume
     if args.bgm:

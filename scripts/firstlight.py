@@ -79,6 +79,7 @@ def main():
         default=1,
         help="1=4 files (1x plain+1.5x+2x BGM), 2=4 files (1x plain+BGM), 3=7 files (all); default 1",
     )
+    parser.add_argument("--use-tts", action="store_true", help="Use TTS audio instead of Everest")
     args = parser.parse_args()
 
     plan_start = date.fromisoformat(args.plan_start_date)
@@ -147,11 +148,11 @@ def main():
         en = chapters_to_english(chapters)
         print(f"\n--- Day {day_num} ({d}) ---", flush=True)
         print("[en]", flush=True)
-        print(f"Day {day_num} ({d}): {en}\n", flush=True)
+        print(f"{plan.get('name', args.plan)} Day {day_num} ({d}): {en}\n", flush=True)
         print("[zh_cn]", flush=True)
-        print(f"第{day_num}天（{d}）：{zh_cn}\n", flush=True)
+        print(f"{plan.get('name_zh', '读经计划')} 第{day_num}天（{d}）：{zh_cn}\n", flush=True)
         print("[zh_tw]", flush=True)
-        print(f"第{day_num}天（{d}）：{zh_tw}\n", flush=True)
+        print(f"{plan.get('name_zh_tw', '讀經計劃')} 第{day_num}天（{d}）：{zh_tw}\n", flush=True)
 
     # 2. Generate MP3 files (preset controls which)
     preset = args.preset
@@ -168,6 +169,8 @@ def main():
             "--end-day", str(day_num),
             "--speech-volume", str(args.speech_volume),
         ]
+        if args.use_tts:
+            base.append("--use-tts")
         done = []
         if preset in (1, 2, 3):
             subprocess.run(base + ["--speed", "1"], check=True)
