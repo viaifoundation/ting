@@ -126,6 +126,22 @@ python scripts/praisewithpsalms.py --use-tts            # generates today's Psal
 python scripts/praisewithpsalms.py --preset 2           # generates today's Psalms Everest audio with BGM
 ```
 
+**Wisdom & Praise** – 30-day plan combining all 150 Psalms (5/day) and Proverbs 1–30 (1/day), inspired by Billy Graham's practice of reading Psalms to learn how to praise God and Proverbs to learn how to live wisely. Generates a single 1.5× BGM file per day. Input is a day number or range — no calendar dates needed.
+```bash
+python scripts/wisdompraise.py 1          # Day 1
+python scripts/wisdompraise.py 1-5        # Days 1–5
+python scripts/wisdompraise.py 16-17      # Days 16–17
+python scripts/wisdompraise.py 1-30       # All 30 days
+```
+Output filenames use Traditional Chinese abbreviations, e.g.:
+```
+30天智慧讚美第01天_詩1-5_箴1.mp3
+30天智慧讚美第16天_詩76-80_箴16.mp3
+30天智慧讚美第30天_詩146-150_箴30.mp3
+```
+Plan file: `assets/bible/plans/wisdom-praise-30days.json`  
+Options: `-o <dir>`, `--speech-volume` (default 4), `--use-tts`, `--interleave-tts`
+
 **Daily cron** – run at 00:05 Kiritimati (e.g. 10:05 UTC) to generate today's MP3s (preset 1 = 4 files):
 ```bash
 5 10 * * * cd /path/to/ting && source venv/bin/activate && python scripts/firstlight.py

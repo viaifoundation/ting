@@ -14,13 +14,15 @@ from datetime import date, timedelta
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT))
+from plan_utils import chapters_to_filename, BOOK_FILENAME_ABBR_ZH_TW
 
 # plan_id -> Chinese name pattern
 PLAN_FILENAME = {
     "chronological-1year": "历史读经第{i}天",
     "chronological-90days": "90天历史读经第{i}天",
     "psalms-30days": "赞美诗篇第{i}天",
-
+    "wisdom-praise-30days": "30天智慧讚美第{i:02d}天",
 }
 PLANS_DIR = REPO_ROOT / "assets" / "bible" / "plans"
 CONCAT_SCRIPT = REPO_ROOT / "scripts" / "concat_daily.py"
@@ -73,6 +75,16 @@ def main():
                         help="First day date YYYY-MM-DD")
     parser.add_argument("--start-day", type=int, default=1)
     parser.add_argument("--end-day", type=int, default=None)
+    parser.add_argument(
+        "--use-chapter-filename",
+        action="store_true",
+        help="Use day+chapter info for filename instead of date prefix (e.g. 30天智慧讚美第01天_詩1-5_箴1)",
+    )
+    parser.add_argument(
+        "--no-speed-label",
+        action="store_true",
+        help="Omit the speed label (_加速 / _倍速) from BGM filenames",
+    )
     args = parser.parse_args()
 
     plan_path = PLANS_DIR / f"{args.plan_id}.json"
@@ -100,8 +112,12 @@ def main():
             print(f"Day {day}: skip (no chapters)")
             continue
         d = start_date + timedelta(days=day - 1)
-        prefix = d.strftime("%Y%m%d")  # YYYYMMDD
-        base_name = f"{prefix}_{name_fmt.format(i=day)}"
+        if args.use_chapter_filename:
+            ch_str = chapters_to_filename(chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW)
+            base_name = f"{name_fmt.format(i=day)}_{ch_str}"
+        else:
+            prefix = d.strftime("%Y%m%d")  # YYYYMMDD
+            base_name = f"{prefix}_{name_fmt.format(i=day)}"
 
         if args.bgm:
             splits = args.bgm_splits
@@ -109,7 +125,10 @@ def main():
             for i, group in enumerate(groups):
                 spec = ",".join(group)
                 suffix = get_bgm_suffix(args.speed, i, splits)
-                out_file = out_dir / f"{base_name}_{suffix}.mp3"
+                if args.no_speed_label:
+                    out_file = out_dir / f"{base_name}.mp3"
+                else:
+                    out_file = out_dir / f"{base_name}_{suffix}.mp3"
                 cmd = [
                     sys.executable, str(CONCAT_SCRIPT),
                     "-c", spec,

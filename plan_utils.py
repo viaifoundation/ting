@@ -234,6 +234,88 @@ def parse_day_text(text: str) -> list[str]:
     return out
 
 
+# Short abbreviations used for generating filenames (book_num -> prefix)
+BOOK_FILENAME_ABBR: dict[int, str] = {
+    1: "gen", 2: "exo", 3: "lev", 4: "num", 5: "deu",
+    6: "jos", 7: "jdg", 8: "rut", 9: "1sa", 10: "2sa",
+    11: "1ki", 12: "2ki", 13: "1ch", 14: "2ch", 15: "ezr",
+    16: "neh", 17: "est", 18: "job", 19: "ps", 20: "prov",
+    21: "ecc", 22: "sng", 23: "isa", 24: "jer", 25: "lam",
+    26: "eze", 27: "dan", 28: "hos", 29: "joe", 30: "amo",
+    31: "oba", 32: "jon", 33: "mic", 34: "nah", 35: "hab",
+    36: "zep", 37: "hag", 38: "zec", 39: "mal",
+    40: "mat", 41: "mar", 42: "luk", 43: "joh", 44: "act",
+    45: "rom", 46: "1co", 47: "2co", 48: "gal", 49: "eph",
+    50: "php", 51: "col", 52: "1th", 53: "2th", 54: "1ti",
+    55: "2ti", 56: "tit", 57: "phm", 58: "heb", 59: "jas",
+    60: "1pe", 61: "2pe", 62: "1jn", 63: "2jn", 64: "3jn",
+    65: "jud", 66: "rev",
+}
+
+# Traditional Chinese short-form abbreviations for filenames (book_num -> 縮寫)
+BOOK_FILENAME_ABBR_ZH_TW: dict[int, str] = {
+    1: "創", 2: "出", 3: "利", 4: "民", 5: "申",
+    6: "書", 7: "士", 8: "得", 9: "撒上", 10: "撒下",
+    11: "王上", 12: "王下", 13: "代上", 14: "代下", 15: "拉",
+    16: "尼", 17: "斯", 18: "伯", 19: "詩", 20: "箴",
+    21: "傳", 22: "歌", 23: "賽", 24: "耶", 25: "哀",
+    26: "結", 27: "但", 28: "何", 29: "珥", 30: "摩",
+    31: "俄", 32: "拿", 33: "彌", 34: "鴻", 35: "哈",
+    36: "番", 37: "該", 38: "亞", 39: "瑪",
+    40: "太", 41: "可", 42: "路", 43: "約", 44: "徒",
+    45: "羅", 46: "林前", 47: "林後", 48: "加", 49: "弗",
+    50: "腓", 51: "西", 52: "帖前", 53: "帖後", 54: "提前",
+    55: "提後", 56: "多", 57: "門", 58: "來", 59: "雅",
+    60: "彼前", 61: "彼後", 62: "約一", 63: "約二", 64: "約三",
+    65: "猶", 66: "啟",
+}
+
+
+def chapters_to_filename(
+    chapters: list[str],
+    abbr: dict[int, str] | None = None,
+) -> str:
+    """
+    Convert a list of 'book:chapter' strings into a compact filename-safe string.
+
+    Groups consecutive chapters per book and collapses them into ranges.
+
+    Args:
+        chapters: list of 'book:chapter' strings, e.g. ['19:1','19:5','20:1']
+        abbr:     book-number -> abbreviation mapping.
+                  Defaults to BOOK_FILENAME_ABBR (English, e.g. 'ps', 'prov').
+                  Pass BOOK_FILENAME_ABBR_ZH_TW for Traditional Chinese (e.g. '詩', '箴').
+
+    Example (English):  ['19:1'...'19:5','20:1'] -> 'ps1-5_prov1'
+    Example (zh_tw):    ['19:1'...'19:5','20:1'] -> '詩1-5_箴1'
+    """
+    if abbr is None:
+        abbr = BOOK_FILENAME_ABBR
+    if not chapters:
+        return "nodata"
+    parts = []
+    i = 0
+    while i < len(chapters):
+        book_num = int(chapters[i].split(":")[0])
+        ch_num = int(chapters[i].split(":")[1])
+        ch_nums = [ch_num]
+        j = i + 1
+        while j < len(chapters):
+            b, c = chapters[j].split(":")
+            if int(b) == book_num and int(c) == ch_nums[-1] + 1:
+                ch_nums.append(int(c))
+                j += 1
+            else:
+                break
+        i = j
+        book_abbr = abbr.get(book_num, f"b{book_num}")
+        if len(ch_nums) == 1:
+            parts.append(f"{book_abbr}{ch_nums[0]}")
+        else:
+            parts.append(f"{book_abbr}{ch_nums[0]}-{ch_nums[-1]}")
+    return "_".join(parts)
+
+
 def load_plan(path: Path) -> dict:
     """Load plan JSON. Returns {id, name, days, source, entries: [[chapters]]}."""
     import json
