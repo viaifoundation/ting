@@ -6,11 +6,19 @@ Input is a day number (1–30) or a range (e.g. 1-5, 16-17).
 Produces one file per day at 1.5x speed with background music.
 Filename format: 30天智慧讚美第01天_詩1-5_箴1.mp3
 
+Translation comparison (--compare-translations):
+  When enabled, each chapter plays: CUV Everest (or primary TTS), then TTS for
+  each translation in --translations (comma-separated). Supported translations:
+  cuvc/cuvs (CUV Simplified, default), cuvt (CUV Traditional),
+  ncvs (New Chinese Version), lcvs (Living Chinese), clbs (Chinese Living Bible).
+
 Usage:
   python scripts/wisdompraise.py 1
   python scripts/wisdompraise.py 1-5
   python scripts/wisdompraise.py 16-17
   python scripts/wisdompraise.py 1-30
+  python scripts/wisdompraise.py 1-5 --compare-translations               # compare with cuvc
+  python scripts/wisdompraise.py 1-5 --compare-translations --translations cuvt,ncvs,clbs
 """
 
 import argparse
@@ -88,6 +96,26 @@ Examples:
         action="store_true",
         default=True,
         help="Interleave Everest CUV and TTS CUVC chapter by chapter (default: True)",
+    )
+    parser.add_argument(
+        "--compare-translations",
+        action="store_true",
+        default=False,
+        help=(
+            "After each chapter, append TTS audio for comparison translations "
+            "(default: False). Pairs with --translations to choose which ones."
+        ),
+    )
+    parser.add_argument(
+        "--translations",
+        type=str,
+        default="cuvc",
+        help=(
+            "Comma-separated list of translations to compare after each chapter "
+            "(used with --compare-translations). Supported: cuvc/cuvs (CUV Simplified, default), "
+            "cuvt (CUV Traditional), ncvs (New Chinese Version), lcvs (Living Chinese), "
+            "clbs (Chinese Living Bible). Example: 'cuvt,ncvs,clbs'"
+        ),
     )
     args = parser.parse_args()
 
@@ -171,6 +199,9 @@ Examples:
             cmd.append("--use-tts")
         if args.interleave_tts:
             cmd.append("--interleave-tts")
+        if args.compare_translations:
+            cmd.append("--compare-translations")
+            cmd.extend(["--translations", args.translations])
 
         subprocess.run(cmd, check=True)
         print(f"✅ Day {day_num}: 30天智慧讚美第{day_num:02d}天", flush=True)

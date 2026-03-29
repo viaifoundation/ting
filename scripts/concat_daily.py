@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """
 Concatenate chapter MP3s into one daily audio file.
-Optional: add background music and adjust volumes.
+Optional: add background music, adjust volumes, and append translation comparisons.
 
 Usage:
   python scripts/concat_daily.py --chapters "1:1,1:2,2:1" --output daily_001.mp3
   python scripts/concat_daily.py --chapters "1:1,1:2" --output day.mp3 --bgm --bgm-volume -20 --speech-volume 2
 
+  # Play each chapter in CUV Everest, then compare with cuvt and ncvs TTS:
+  python scripts/concat_daily.py --chapters "19:1,19:2" -o day.mp3 \
+    --compare-translations --translations cuvt,ncvs
+
 Chapter format: book:chapter (e.g. 1:1 = Genesis 1, 43:16 = John 16).
-Requires: pydub, ffmpeg (for pydub mp3 support).
+Requires: pydub, ffmpeg (for pydub mp3 support), edge-tts (for TTS generation).
 """
 
 import argparse
@@ -24,6 +28,16 @@ from pydub import AudioSegment
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import audio_mixer
+
+# Translation name → DB column (must match generate_psalms_tts.TRANSLATION_COLUMNS)
+TRANSLATION_COLUMNS: dict[str, str] = {
+    "cuvc": "cuvc",   # CUV Simplified (default primary)
+    "cuvs": "cuvc",   # alias for cuvc
+    "cuvt": "cuvt",   # CUV Traditional
+    "ncvs": "ncvs",   # New Chinese Version Simplified
+    "lcvs": "lcvs",   # Living Chinese Version
+    "clbs": "clbs",   # Chinese Living Bible Simplified
+}
 
 
 def _speedup_ffmpeg(seg: AudioSegment, speed: float) -> AudioSegment:
@@ -103,7 +117,27 @@ Examples:
     parser.add_argument("--chapters-dir", type=str, default=None, help="Chapters dir (default: assets/bible/audio/chapters)")
     parser.add_argument("--use-tts", action="store_true", help="Use TTS chapters instead of Everest")
     parser.add_argument("--interleave-tts", action="store_true", help="Interleave Everest and TTS chapters (Everest then TTS)")
-    parser.add_argument("--gap-ms", type=int, default=500, help="Silence between chapters (ms)")
+    parser.add_argument(
+        "--compare-translations",
+        action="store_true",
+        default=False,
+        help=(
+            "After each chapter, append TTS audio for comparison translations. "
+            "Use --translations to specify which ones (default: cuvc). "
+            "The primary CUV audio plays first (Everest or TTS), then each comparison translation."
+        ),
+    )
+    parser.add_argument(
+        "--translations",
+        type=str,
+        default="cuvc",
+        help=(
+            "Comma-separated list of translation names for comparison (used with "
+            "--compare-translations). Supported: cuvc/cuvs, cuvt, ncvs, lcvs, clbs. "
+            "Example: 'cuvt,ncvs,clbs' (default: cuvc)"
+        ),
+    )
+    parser.add_argument("--gap-ms", type=int, default=500, help="Silence between chapters/segments (ms)")
 
     # BGM
     parser.add_argument("--bgm", action="store_true", help="Add background music")
@@ -133,6 +167,20 @@ Examples:
     if not pairs:
         parser.error("No valid chapters parsed")
 
+    # Validate compare-translation names
+    compare_translations: list[str] = []
+    if args.compare_translations:
+        raw_names = [n.strip() for n in args.translations.split(",") if n.strip()]
+        if not raw_names:
+            raw_names = ["cuvc"]
+        for name in raw_names:
+            if name not in TRANSLATION_COLUMNS:
+                print(f"❌ Unknown translation '{name}'. "
+                      f"Supported: {', '.join(sorted(TRANSLATION_COLUMNS))}")
+                return 1
+        compare_translations = raw_names
+        print(f"🔄 Translation comparison enabled: {', '.join(compare_translations)}")
+
     # Paths
     repo_root = Path(__file__).resolve().parent.parent
     default_dir = "chapters_tts" if args.use_tts else "chapters"
@@ -141,7 +189,7 @@ Examples:
     if not output_path.is_absolute():
         output_path = repo_root / output_path
 
-    if not args.interleave_tts and not chapters_dir.exists():
+    if not args.interleave_tts and not compare_translations and not chapters_dir.exists():
         print(f"❌ Chapters directory not found: {chapters_dir}")
         if args.use_tts:
             print("   Run: python scripts/generate_psalms_tts.py")
@@ -158,7 +206,7 @@ Examples:
 
     for book, chapter in pairs:
         fname = f"{book:03d}_{chapter:03d}.mp3"
-        
+
         if args.interleave_tts:
             # 1. Everest
             path_ev = everest_dir / fname
@@ -169,8 +217,8 @@ Examples:
                 combined += seg_ev + silence
             else:
                 print(f"⚠️ Missing Everest: {path_ev}")
-                
-            # 2. TTS
+
+            # 2. Primary TTS (cuvc)
             path_tts = tts_dir / fname
             if not path_tts.exists():
                 print(f"  Generating missing TTS on the fly: {fname}")
@@ -178,11 +226,30 @@ Examples:
                     sys.executable, str(repo_root / "scripts" / "generate_psalms_tts.py"),
                     "--book", str(book), "--start", str(chapter), "--end", str(chapter)
                 ], check=False)
-            
+
             if path_tts.exists():
                 combined += _load_mp3(path_tts) + silence
             else:
                 print(f"⚠️ Missing TTS (Generation failed): {path_tts}")
+
+            # 3. Comparison translations (if enabled)
+            for trans_name in compare_translations:
+                trans_dir = (repo_root / "assets" / "bible" / "audio" / "chapters_tts"
+                             if trans_name in ("cuvc", "cuvs")
+                             else repo_root / "assets" / "bible" / "audio" / f"chapters_tts_{trans_name}")
+                path_trans = trans_dir / fname
+                if not path_trans.exists():
+                    print(f"  Generating missing {trans_name} TTS on the fly: {fname}")
+                    subprocess.run([
+                        sys.executable, str(repo_root / "scripts" / "generate_psalms_tts.py"),
+                        "--book", str(book), "--start", str(chapter), "--end", str(chapter),
+                        "--translation", trans_name,
+                    ], check=False)
+                if path_trans.exists():
+                    combined += _load_mp3(path_trans) + silence
+                else:
+                    print(f"⚠️ Missing {trans_name} TTS (generation failed): {path_trans}")
+
         else:
             path = chapters_dir / fname
             if not path.exists() and args.use_tts:
@@ -191,7 +258,7 @@ Examples:
                     sys.executable, str(repo_root / "scripts" / "generate_psalms_tts.py"),
                     "--book", str(book), "--start", str(chapter), "--end", str(chapter)
                 ], check=False)
-                
+
             if not path.exists():
                 print(f"⚠️ Missing: {path}")
                 continue
@@ -200,6 +267,24 @@ Examples:
             if args.speed > 1.0 and not args.use_tts:
                 seg = _speedup_ffmpeg(seg, args.speed)
             combined += seg + silence
+
+            # Comparison translations (non-interleave mode)
+            for trans_name in compare_translations:
+                trans_dir = (repo_root / "assets" / "bible" / "audio" / "chapters_tts"
+                             if trans_name in ("cuvc", "cuvs")
+                             else repo_root / "assets" / "bible" / "audio" / f"chapters_tts_{trans_name}")
+                path_trans = trans_dir / fname
+                if not path_trans.exists():
+                    print(f"  Generating missing {trans_name} TTS on the fly: {fname}")
+                    subprocess.run([
+                        sys.executable, str(repo_root / "scripts" / "generate_psalms_tts.py"),
+                        "--book", str(book), "--start", str(chapter), "--end", str(chapter),
+                        "--translation", trans_name,
+                    ], check=False)
+                if path_trans.exists():
+                    combined += _load_mp3(path_trans) + silence
+                else:
+                    print(f"⚠️ Missing {trans_name} TTS (generation failed): {path_trans}")
 
     if len(combined) == 0:
         print("❌ No chapters loaded")
