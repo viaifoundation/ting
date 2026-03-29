@@ -175,10 +175,10 @@ Examples:
             raw_names = ["cuvc"]
         for name in raw_names:
             if name not in TRANSLATION_COLUMNS:
-                print(f"❌ Unknown translation '{name}'. "
-                      f"Supported: {', '.join(sorted(TRANSLATION_COLUMNS))}")
-                return 1
-        compare_translations = raw_names
+                print(f"⚠️  Unknown or unavailable translation '{name}'. "
+                      f"Skipping. Supported: {', '.join(sorted(TRANSLATION_COLUMNS))}")
+                continue
+            compare_translations.append(name)
         print(f"🔄 Translation comparison enabled: {', '.join(compare_translations)}")
 
     # Paths
