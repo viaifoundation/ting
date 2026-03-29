@@ -19,8 +19,8 @@ Usage:
   python scripts/praisewithpsalms.py --start-date 2026-03-01 --end-date 2026-03-05
   python scripts/praisewithpsalms.py --plan chronological-1year --plan-start-date 2026-01-01
   python scripts/praisewithpsalms.py --preset 3   # all 7 files
-  python scripts/praisewithpsalms.py --compare-translations              # compare with cuvc TTS
-  python scripts/praisewithpsalms.py --compare-translations --translations cuvt,ncvs,clbs
+  python scripts/praisewithpsalms.py --compare              # compare with cuvc TTS
+  python scripts/praisewithpsalms.py --compare --trans cuvt,ncvs,clbs
 """
 
 import argparse
@@ -90,21 +90,21 @@ def main():
     parser.add_argument("--use-tts", action="store_true", help="Use TTS audio instead of Everest")
     parser.add_argument("--interleave-tts", action="store_true", default=True, help="Interleave Everest CUV and TTS CUVC chapter by chapter (Default: True)")
     parser.add_argument(
-        "--compare-translations",
+        "--compare",
         action="store_true",
         default=False,
         help=(
             "After each chapter, append TTS audio for comparison translations "
-            "(default: False). Pairs with --translations to choose which ones."
+            "(default: False). Pairs with --trans to choose which ones."
         ),
     )
     parser.add_argument(
-        "--translations",
+        "--trans",
         type=str,
         default="cuvc",
         help=(
-            "Comma-separated list of translations to compare after each chapter "
-            "(used with --compare-translations). Supported: cuvc/cuvs (CUV Simplified, default), "
+            "Comma-separated translations to compare after each chapter "
+            "(used with --compare). Supported: cuvc/cuvs (CUV Simplified, default), "
             "cuvt (CUV Traditional), ncvs (New Chinese Version), lcvs (Living Chinese), "
             "clbs (Chinese Living Bible). Example: 'cuvt,ncvs,clbs'"
         ),
@@ -202,9 +202,9 @@ def main():
             base.append("--use-tts")
         if args.interleave_tts:
             base.append("--interleave-tts")
-        if args.compare_translations:
-            base.append("--compare-translations")
-            base.extend(["--translations", args.translations])
+        if args.compare:
+            base.append("--compare")
+            base.extend(["--trans", args.trans])
         done = []
         if preset in (1, 2, 3):
             subprocess.run(base + ["--speed", "1"], check=True)

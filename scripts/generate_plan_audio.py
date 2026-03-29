@@ -9,7 +9,7 @@ Usage:
   python scripts/generate_plan_audio.py chronological-1year -o audio/
   python scripts/generate_plan_audio.py ninety-day-challenge -o audio/ --speech-volume 4
   python scripts/generate_plan_audio.py psalms-30days -o audio/ \\
-    --compare-translations --translations cuvt,ncvs
+    --compare --trans cuvt,ncvs
 """
 
 import argparse
@@ -73,20 +73,20 @@ def main():
     parser.add_argument("--use-tts", action="store_true", help="Use TTS audio instead of Everest")
     parser.add_argument("--interleave-tts", action="store_true", help="Interleave Everest and TTS chapters")
     parser.add_argument(
-        "--compare-translations",
+        "--compare",
         action="store_true",
         default=False,
         help=(
             "Append TTS for additional translations after each chapter. "
-            "Default: False. See --translations to configure which ones."
+            "Default: False. See --trans to configure which ones."
         ),
     )
     parser.add_argument(
-        "--translations",
+        "--trans",
         type=str,
         default="cuvc",
         help=(
-            "Comma-separated comparison translations (used with --compare-translations). "
+            "Comma-separated comparison translations (used with --compare). "
             "Supported: cuvc/cuvs, cuvt, ncvs, lcvs, clbs. Example: 'cuvt,ncvs' (default: cuvc)"
         ),
     )
@@ -166,9 +166,9 @@ def main():
                     cmd.append("--use-tts")
                 if args.interleave_tts:
                     cmd.append("--interleave-tts")
-                if args.compare_translations:
-                    cmd.append("--compare-translations")
-                    cmd.extend(["--translations", args.translations])
+                if args.compare:
+                    cmd.append("--compare")
+                    cmd.extend(["--trans", args.trans])
                 subprocess.run(cmd, check=True)
                 print(f"Day {day}: {out_file.name}")
         else:
@@ -187,9 +187,9 @@ def main():
                 cmd.append("--use-tts")
             if args.interleave_tts:
                 cmd.append("--interleave-tts")
-            if args.compare_translations:
-                cmd.append("--compare-translations")
-                cmd.extend(["--translations", args.translations])
+            if args.compare:
+                cmd.append("--compare")
+                cmd.extend(["--trans", args.trans])
             subprocess.run(cmd, check=True)
             print(f"Day {day}: {out_file.name}")
 

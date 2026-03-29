@@ -17,8 +17,8 @@ Usage:
   python scripts/wisdompraise.py 1-5
   python scripts/wisdompraise.py 16-17
   python scripts/wisdompraise.py 1-30
-  python scripts/wisdompraise.py 1-5 --compare-translations               # compare with cuvc
-  python scripts/wisdompraise.py 1-5 --compare-translations --translations cuvt,ncvs,clbs
+  python scripts/wisdompraise.py 1-5 --compare               # compare with cuvc
+  python scripts/wisdompraise.py 1-5 --compare --trans cuvt,ncvs,clbs
 """
 
 import argparse
@@ -98,21 +98,21 @@ Examples:
         help="Interleave Everest CUV and TTS CUVC chapter by chapter (default: True)",
     )
     parser.add_argument(
-        "--compare-translations",
+        "--compare",
         action="store_true",
         default=False,
         help=(
             "After each chapter, append TTS audio for comparison translations "
-            "(default: False). Pairs with --translations to choose which ones."
+            "(default: False). Pairs with --trans to choose which ones."
         ),
     )
     parser.add_argument(
-        "--translations",
+        "--trans",
         type=str,
         default="cuvc",
         help=(
-            "Comma-separated list of translations to compare after each chapter "
-            "(used with --compare-translations). Supported: cuvc/cuvs (CUV Simplified, default), "
+            "Comma-separated translations to compare after each chapter "
+            "(used with --compare). Supported: cuvc/cuvs (CUV Simplified, default), "
             "cuvt (CUV Traditional), ncvs (New Chinese Version), lcvs (Living Chinese), "
             "clbs (Chinese Living Bible). Example: 'cuvt,ncvs,clbs'"
         ),
@@ -199,9 +199,9 @@ Examples:
             cmd.append("--use-tts")
         if args.interleave_tts:
             cmd.append("--interleave-tts")
-        if args.compare_translations:
-            cmd.append("--compare-translations")
-            cmd.extend(["--translations", args.translations])
+        if args.compare:
+            cmd.append("--compare")
+            cmd.extend(["--trans", args.trans])
 
         subprocess.run(cmd, check=True)
         print(f"✅ Day {day_num}: 30天智慧讚美第{day_num:02d}天", flush=True)

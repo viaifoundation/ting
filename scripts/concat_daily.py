@@ -9,7 +9,7 @@ Usage:
 
   # Play each chapter in CUV Everest, then compare with cuvt and ncvs TTS:
   python scripts/concat_daily.py --chapters "19:1,19:2" -o day.mp3 \
-    --compare-translations --translations cuvt,ncvs
+    --compare --trans cuvt,ncvs
 
 Chapter format: book:chapter (e.g. 1:1 = Genesis 1, 43:16 = John 16).
 Requires: pydub, ffmpeg (for pydub mp3 support), edge-tts (for TTS generation).
@@ -118,22 +118,22 @@ Examples:
     parser.add_argument("--use-tts", action="store_true", help="Use TTS chapters instead of Everest")
     parser.add_argument("--interleave-tts", action="store_true", help="Interleave Everest and TTS chapters (Everest then TTS)")
     parser.add_argument(
-        "--compare-translations",
+        "--compare",
         action="store_true",
         default=False,
         help=(
             "After each chapter, append TTS audio for comparison translations. "
-            "Use --translations to specify which ones (default: cuvc). "
+            "Use --trans to specify which ones (default: cuvc). "
             "The primary CUV audio plays first (Everest or TTS), then each comparison translation."
         ),
     )
     parser.add_argument(
-        "--translations",
+        "--trans",
         type=str,
         default="cuvc",
         help=(
-            "Comma-separated list of translation names for comparison (used with "
-            "--compare-translations). Supported: cuvc/cuvs, cuvt, ncvs, lcvs, clbs. "
+            "Comma-separated translation names for comparison (used with "
+            "--compare). Supported: cuvc/cuvs, cuvt, ncvs, lcvs, clbs. "
             "Example: 'cuvt,ncvs,clbs' (default: cuvc)"
         ),
     )
@@ -169,8 +169,8 @@ Examples:
 
     # Validate compare-translation names
     compare_translations: list[str] = []
-    if args.compare_translations:
-        raw_names = [n.strip() for n in args.translations.split(",") if n.strip()]
+    if args.compare:
+        raw_names = [n.strip() for n in args.trans.split(",") if n.strip()]
         if not raw_names:
             raw_names = ["cuvc"]
         for name in raw_names:
