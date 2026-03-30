@@ -77,6 +77,9 @@ python scripts/mix_bgm.py -i daily_001.mp3 --bgm --bgm-track AmazingGrace.mp3
 | 7 | `busy-life-1year` | 365 | Lighter daily load |
 | 8 | `chronological-90days` | 90 | Chronological in 90 days |
 | 9 | `ninety-day-challenge` | 90 | Sequential Gen→Rev |
+| 10 | `nt-40days` | 40 | NT in 40 days challenge |
+| 11 | `nt-psalms-proverbs-90days` | 90 | NT, Psalms, & Proverbs in 90 days |
+
 
 **Refresh plans:**
 ```bash
@@ -141,6 +144,18 @@ Output filenames use Traditional Chinese abbreviations, e.g.:
 ```
 Plan file: `assets/bible/plans/wisdom-praise-30days.json`  
 Options: `-o <dir>`, `--speech-volume` (default 4), `--use-tts`, `--interleave-tts`
+
+**New Testament Challenges** – Dedicated scripts for focused New Testament study, following the `wisdompraise.py` method (single 1.5× BGM file per day). These scripts generate a consolidated daily audio file at high speed with background music.
+- **NT in 40 Days**: `python scripts/nt40.py 1-40`
+- **NT, Psalms, & Proverbs (90 Days)**: `python scripts/ntpp90.py 1-90`
+
+Support for day ranges (e.g., `1-5`) and optional translation comparison:
+```bash
+python scripts/nt40.py 1           # Day 1 only
+python scripts/nt40.py 1-5         # Days 1–5
+python scripts/nt40.py 1 --compare # Enable translation comparison (CUV + CUVC)
+```
+Plan files: `assets/bible/plans/nt-40days.json`, `assets/bible/plans/nt-psalms-proverbs-90days.json`
 
 **Daily cron** – run at 00:05 Kiritimati (e.g. 10:05 UTC) to generate today's MP3s (preset 1 = 4 files):
 ```bash

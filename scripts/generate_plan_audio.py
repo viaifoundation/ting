@@ -29,6 +29,8 @@ PLAN_FILENAME = {
     "chronological-90days": "90天历史读经第{i}天",
     "psalms-30days": "赞美诗篇第{i}天",
     "wisdom-praise-30days": "30天智慧讚美第{i:02d}天",
+    "nt-40days": "40天新約挑戰第{i:02d}天",
+    "nt-psalms-proverbs-90days": "90天新約詩篇箴言挑戰第{i:02d}天",
 }
 PLANS_DIR = REPO_ROOT / "assets" / "bible" / "plans"
 CONCAT_SCRIPT = REPO_ROOT / "scripts" / "concat_daily.py"
