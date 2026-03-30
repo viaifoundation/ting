@@ -94,8 +94,8 @@ Examples:
     parser.add_argument(
         "--interleave-tts",
         action="store_true",
-        default=True,
-        help="Interleave Everest CUV and TTS CUVC chapter by chapter (default: True)",
+        default=False,
+        help="Interleave Everest CUV and TTS CUVC chapter by chapter (default: False)",
     )
     parser.add_argument(
         "--compare",

@@ -88,7 +88,7 @@ def main():
         help="1=3 files (1x plain+1.5x+2x BGM), 2=2 files (1x plain+1x BGM), 3=4 files (all); default 1",
     )
     parser.add_argument("--use-tts", action="store_true", help="Use TTS audio instead of Everest")
-    parser.add_argument("--interleave-tts", action="store_true", default=True, help="Interleave Everest CUV and TTS CUVC chapter by chapter (Default: True)")
+    parser.add_argument("--interleave-tts", action="store_true", default=False, help="Interleave Everest CUV and TTS CUVC chapter by chapter (Default: False)")
     parser.add_argument(
         "--compare",
         action="store_true",
