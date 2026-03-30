@@ -111,6 +111,12 @@ def main():
         action="store_true",
         help="Omit the speed label (_加速 / _倍速) from BGM filenames",
     )
+    parser.add_argument(
+        "--filename-suffix",
+        type=str,
+        default="",
+        help="Append this suffix to the base filename (before .mp3), e.g. '_對照文理和合本'",
+    )
     args = parser.parse_args()
 
     plan_path = PLANS_DIR / f"{args.plan_id}.json"
@@ -144,6 +150,8 @@ def main():
         else:
             prefix = d.strftime("%Y%m%d")  # YYYYMMDD
             base_name = f"{prefix}_{name_fmt.format(i=day)}"
+        if args.filename_suffix:
+            base_name += args.filename_suffix
 
         if args.bgm:
             splits = args.bgm_splits

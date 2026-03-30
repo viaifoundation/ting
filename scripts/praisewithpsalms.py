@@ -1,35 +1,29 @@
 #!/usr/bin/env python3
 """
-For each day in a date range: print plan content ([en], [zh_cn], [zh_tw]) and generate MP3 files.
---preset 1 (default): 4 files (1x plain + 1.5x BGM + 2x BGM)
---preset 2: 4 files (1x plain + 1x BGM)
---preset 3: 7 files (all)
-Plain: single file; BGM split into smaller files for easier download.
-Default: today in Kiritimati (UTC+14) – the first timezone to see each new day.
+Generate Psalms 30-day reading plan audio.
 
-Translation comparison (--compare-translations):
-  When enabled, each chapter plays: CUV Everest (or primary TTS), then TTS for
-  each translation in --translations (comma-separated). Supported translations:
-  cuvc/cuvs (CUV Simplified, default), cuvt (CUV Traditional),
-  ncvs (New Chinese Version), lcvs (Living Chinese), clbs (Chinese Living Bible).
+Input is a day number (1–30) or a range (e.g. 1-7, 16-17).
+Defaults to day 1 if no argument is given.
+Produces one file per day at 1.5x speed with background music.
+
+Translation comparison (enabled by default):
+  Each chapter plays: CUV Everest audio, then CUVC TTS for comparison.
+  When compare is enabled, filenames include '對照文理和合本'.
+  Use --no-compare to disable.
 
 Usage:
-  python scripts/praisewithpsalms.py
-  python scripts/praisewithpsalms.py --start-date 2026-02-27 --num-days 5
-  python scripts/praisewithpsalms.py --start-date 2026-03-01 --end-date 2026-03-05
-  python scripts/praisewithpsalms.py --plan chronological-1year --plan-start-date 2026-01-01
-  python scripts/praisewithpsalms.py --preset 3   # all 7 files
-  python scripts/praisewithpsalms.py --compare              # compare with cuvc TTS
-  python scripts/praisewithpsalms.py --compare --trans cuvt,ncvs,clbs
+  python scripts/praisewithpsalms.py                  # Day 1 with comparison
+  python scripts/praisewithpsalms.py 1-7              # Days 1–7
+  python scripts/praisewithpsalms.py 8                # Day 8
+  python scripts/praisewithpsalms.py 1-30             # All 30 days
+  python scripts/praisewithpsalms.py --no-compare     # Day 1 without comparison
+  python scripts/praisewithpsalms.py 1-5 --trans cuvt,ncvs  # Different translations
 """
 
 import argparse
 import subprocess
 import sys
-from datetime import date, datetime, timedelta
 from pathlib import Path
-
-import zoneinfo
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
@@ -41,182 +35,179 @@ from plan_utils import (
     load_plan,
 )
 
-FIRST_TZ = zoneinfo.ZoneInfo("Pacific/Kiritimati")
+PLAN_ID = "psalms-30days"
+
+
+def parse_day_range(spec: str) -> list[int]:
+    """
+    Parse a day specification into a list of day numbers.
+    Accepts:
+      - a single integer: "1" -> [1]
+      - a range:          "1-5" -> [1, 2, 3, 4, 5]
+    """
+    spec = spec.strip()
+    if "-" in spec:
+        parts = spec.split("-", 1)
+        try:
+            start, end = int(parts[0]), int(parts[1])
+        except ValueError:
+            raise ValueError(f"Invalid day range: '{spec}'. Expected format: N or N-M")
+        if start > end:
+            raise ValueError(f"Start day {start} must be <= end day {end}")
+        return list(range(start, end + 1))
+    else:
+        try:
+            return [int(spec)]
+        except ValueError:
+            raise ValueError(f"Invalid day: '{spec}'. Expected an integer or range N-M")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate Praise with Psalms reading audio for date range"
+        description="Generate Psalms 30-day plan audio (1.5x + BGM, comparison by default)",
+        epilog="""
+Examples:
+  python scripts/praisewithpsalms.py           # Day 1 with comparison
+  python scripts/praisewithpsalms.py 1-7       # Days 1–7
+  python scripts/praisewithpsalms.py 8         # Day 8
+  python scripts/praisewithpsalms.py --no-compare  # Without comparison
+""",
     )
     parser.add_argument(
-        "--plan",
+        "days",
         type=str,
-        default="psalms-30days",
-        help="Plan ID (default: psalms-30days)",
+        nargs="?",
+        default="1",
+        help="Day number (1–30) or range (e.g. 1-7, 16-17). Default: 1",
     )
     parser.add_argument(
-        "--plan-start-date",
-        type=str,
-        default="2026-03-24",
-        help="Plan day 1 calendar date YYYY-MM-DD",
-    )
-    parser.add_argument(
-        "--start-date",
-        type=str,
-        default=None,
-        help="First calendar date to generate (default: today in Kiritimati)",
-    )
-    parser.add_argument(
-        "--end-date",
+        "-o", "--output",
         type=str,
         default=None,
-        help="Last calendar date to generate (default: same as start-date)",
+        help="Output directory (default: audio/psalms-30days/)",
     )
-    parser.add_argument(
-        "--num-days",
-        type=int,
-        default=1,
-        help="Number of days to generate (used if --end-date not set; default 1)",
-    )
-    parser.add_argument("-o", "--output", type=str, default=None)
     parser.add_argument("--speech-volume", type=int, default=4)
     parser.add_argument(
-        "--preset",
-        type=int,
-        choices=[1, 2, 3],
-        default=1,
-        help="1=3 files (1x plain+1.5x+2x BGM), 2=2 files (1x plain+1x BGM), 3=4 files (all); default 1",
+        "--use-tts",
+        action="store_true",
+        help="Use TTS audio instead of Everest",
     )
-    parser.add_argument("--use-tts", action="store_true", help="Use TTS audio instead of Everest")
-    parser.add_argument("--interleave-tts", action="store_true", default=False, help="Interleave Everest CUV and TTS CUVC chapter by chapter (Default: False)")
     parser.add_argument(
-        "--compare",
+        "--interleave-tts",
         action="store_true",
         default=False,
-        help=(
-            "After each chapter, append TTS audio for comparison translations "
-            "(default: False). Pairs with --trans to choose which ones."
-        ),
+        help="Interleave Everest CUV and TTS CUVC chapter by chapter (default: False)",
+    )
+    parser.add_argument(
+        "--no-compare",
+        action="store_true",
+        default=False,
+        help="Disable translation comparison (comparison is ON by default)",
     )
     parser.add_argument(
         "--trans",
         type=str,
         default="cuvc",
         help=(
-            "Comma-separated translations to compare after each chapter "
-            "(used with --compare). Supported: cuvc/cuvs (CUV Simplified, default), "
+            "Comma-separated translations to compare after each chapter. "
+            "Supported: cuvc/cuvs (CUV Simplified, default), "
             "cuvt (CUV Traditional), ncvs (New Chinese Version), lcvs (Living Chinese), "
             "clbs (Chinese Living Bible). Example: 'cuvt,ncvs,clbs'"
         ),
     )
     args = parser.parse_args()
 
-    plan_start = date.fromisoformat(args.plan_start_date)
-    today = datetime.now(FIRST_TZ).date()
+    compare = not args.no_compare
 
-    start_date = date.fromisoformat(args.start_date) if args.start_date else today
-    if args.end_date:
-        end_date = date.fromisoformat(args.end_date)
-    else:
-        end_date = start_date + timedelta(days=args.num_days - 1)
-
-    if start_date > end_date:
-        print("start-date must be <= end-date")
+    # Parse day range
+    try:
+        requested_days = parse_day_range(args.days)
+    except ValueError as e:
+        print(f"❌ {e}")
         return 1
 
-    plan_path = REPO_ROOT / "assets" / "bible" / "plans" / f"{args.plan}.json"
+    # Load plan
+    plan_path = REPO_ROOT / "assets" / "bible" / "plans" / f"{PLAN_ID}.json"
     if not plan_path.exists():
-        print(f"Plan not found: {args.plan}")
+        print(f"❌ Plan not found: {plan_path}")
         return 1
 
     plan = load_plan(plan_path)
-    max_day = max(e["day"] for e in plan["entries"])
+    max_day = plan["days"]
     entries_by_day = {e["day"]: e for e in plan["entries"]}
 
-    out_dir = Path(args.output) if args.output else REPO_ROOT / "audio" / args.plan
+    # Validate requested days
+    invalid = [d for d in requested_days if d < 1 or d > max_day]
+    if invalid:
+        print(f"❌ Day(s) out of range (plan has {max_day} days): {invalid}")
+        return 1
+
+    # Collect entries
+    days_to_generate = []
+    for day_num in requested_days:
+        entry = entries_by_day.get(day_num)
+        if not entry or not entry.get("chapters"):
+            print(f"⚠️  Day {day_num}: no chapters in plan, skipping.")
+            continue
+        days_to_generate.append((day_num, entry["chapters"]))
+
+    if not days_to_generate:
+        print("❌ No valid days to generate.")
+        return 1
+
+    out_dir = Path(args.output) if args.output else REPO_ROOT / "audio" / PLAN_ID
     out_dir.mkdir(parents=True, exist_ok=True)
 
     generate = REPO_ROOT / "scripts" / "generate_plan_audio.py"
 
-    # Collect valid days in range (skip days with empty chapters – plan has gaps)
-    days_to_generate = []
-    d = start_date
-    while d <= end_date:
-        day_num = (d - plan_start).days + 1
-        if 1 <= day_num <= max_day:
-            entry = entries_by_day.get(day_num)
-            if entry and entry.get("chapters"):
-                days_to_generate.append((d, day_num, entry["chapters"]))
-        d += timedelta(days=1)
-
-    if not days_to_generate:
-        first_d = start_date
-        day_num_first = (first_d - plan_start).days + 1
-        if day_num_first < 1:
-            print(f"Date range {start_date}..{end_date} is before plan start ({plan_start}).")
-            print(f"  Use --plan-start-date {start_date} to make {start_date} = day 1.")
-        elif day_num_first > max_day:
-            print(f"Date range {start_date}..{end_date} is past plan end (day {max_day}).")
-        else:
-            print(f"Day {day_num_first} ({first_d}) has no chapters in the plan (plan has gaps).")
-            # Suggest next date with content
-            for dn in range(day_num_first + 1, max_day + 1):
-                if entries_by_day.get(dn, {}).get("chapters"):
-                    next_d = plan_start + timedelta(days=dn - 1)
-                    print(f"  Next day with content: Day {dn} ({next_d}). Try: --start-date {next_d}")
-                    break
-        return 1
-
-    # 1. Print plan content for all given days
-    print("\n" + "=" * 60, flush=True)
-    print("Plan content (given days)", flush=True)
+    # ── Print plan content ────────────────────────────────────────────────────
+    mode_label = "with comparison (對照文理和合本)" if compare else "without comparison"
+    print(f"\n{'=' * 60}", flush=True)
+    print(f"Plan content — {mode_label}", flush=True)
     print("=" * 60, flush=True)
-    for d, day_num, chapters in days_to_generate:
+    for day_num, chapters in days_to_generate:
         zh_cn = chapters_to_chinese(chapters, BOOK_CHINESE)
         zh_tw = chapters_to_chinese(chapters, BOOK_CHINESE_TW)
         en = chapters_to_english(chapters)
-        print(f"\n--- Day {day_num} ({d}) ---", flush=True)
-        print("[en]", flush=True)
-        print(f"{plan.get('name', args.plan)} Day {day_num} ({d}): {en}\n", flush=True)
+        print(f"\n--- Day {day_num} ---", flush=True)
+        print("[en]",  flush=True)
+        print(f"{plan.get('name', PLAN_ID)} Day {day_num}: {en}\n", flush=True)
         print("[zh_cn]", flush=True)
-        print(f"{plan.get('name_zh', '读经计划')} 第{day_num}天（{d}）：{zh_cn}\n", flush=True)
+        print(f"{plan.get('name_zh', '读经计划')} 第{day_num}天：{zh_cn}\n", flush=True)
         print("[zh_tw]", flush=True)
-        print(f"{plan.get('name_zh_tw', '讀經計劃')} 第{day_num}天（{d}）：{zh_tw}\n", flush=True)
+        print(f"{plan.get('name_zh_tw', '讀經計劃')} 第{day_num}天：{zh_tw}\n", flush=True)
 
-    # 2. Generate MP3 files (preset controls which)
-    preset = args.preset
-    print("\n" + "=" * 60, flush=True)
-    print("Generating MP3 files...", flush=True)
+    # ── Generate MP3 files (1.5x speed + BGM) ────────────────────────────────
+    print(f"\n{'=' * 60}", flush=True)
+    print("Generating MP3 files… (1.5x + BGM)", flush=True)
     print("=" * 60, flush=True)
-    for d, day_num, chapters in days_to_generate:
-        base = [
+
+    for day_num, chapters in days_to_generate:
+        cmd = [
             sys.executable, str(generate),
-            args.plan,
+            PLAN_ID,
             "-o", str(out_dir),
-            "--start-date", args.plan_start_date,
             "--start-day", str(day_num),
-            "--end-day", str(day_num),
+            "--end-day",   str(day_num),
             "--speech-volume", str(args.speech_volume),
+            "--use-chapter-filename",
+            "--no-speed-label",
+            "--speed", "1.5",
+            "--bgm",
+            "--bgm-splits", "1",
         ]
         if args.use_tts:
-            base.append("--use-tts")
+            cmd.append("--use-tts")
         if args.interleave_tts:
-            base.append("--interleave-tts")
-        if args.compare:
-            base.append("--compare")
-            base.extend(["--trans", args.trans])
-        done = []
-        if preset in (1, 2, 3):
-            subprocess.run(base + ["--speed", "1"], check=True)
-            done.append("plain")
-        if preset in (2, 3):
-            subprocess.run(base + ["--speed", "1", "--bgm", "--bgm-splits", "1"], check=True)
-            done.append("原速(伴奏)")
-        if preset in (1, 3):
-            subprocess.run(base + ["--speed", "1.5", "--bgm", "--bgm-splits", "1"], check=True)
-            subprocess.run(base + ["--speed", "2", "--bgm", "--bgm-splits", "1"], check=True)
-            done.extend(["加速(伴奏)", "倍速(伴奏)"])
-        print(f"✅ Day {day_num}: {' + '.join(done)}", flush=True)
+            cmd.append("--interleave-tts")
+        if compare:
+            cmd.append("--compare")
+            cmd.extend(["--trans", args.trans])
+            cmd.extend(["--filename-suffix", "_對照文理和合本"])
+
+        subprocess.run(cmd, check=True)
+        plan_name = plan.get('name_zh_tw', '讀經計劃')
+        print(f"✅ Day {day_num}: {plan_name}第{day_num:02d}天", flush=True)
 
     print(f"\nDone. Output: {out_dir}")
     return 0

@@ -123,11 +123,15 @@ python scripts/firstlight.py --preset 3                        # all 7 files
 
 Options: `--plan` (default chronological-90days), `--plan-start-date` (day 1), `--start-date`, `--end-date`, `--num-days` (if both `--end-date` and `--num-days` given, `--end-date` wins), `--preset`.
 
-**Praise with Psalms** – exactly like firstlight, but defaults seamlessly to the `psalms-30days` reading plan, starting today. Supports the same options, including the new TTS engine!
+**Praise with Psalms** – generates a single 1.5× BGM file per day for the `psalms-30days` plan. Input is a day number or range (defaults to day 1). **Translation comparison is enabled by default** (CUV Everest + CUVC TTS), and filenames include `對照文理和合本` when comparison is on.
 ```bash
-python scripts/praisewithpsalms.py --use-tts            # generates today's Psalms TTS audio
-python scripts/praisewithpsalms.py --preset 2           # generates today's Psalms Everest audio with BGM
+python scripts/praisewithpsalms.py              # Day 1 with comparison
+python scripts/praisewithpsalms.py 1-7          # Days 1–7
+python scripts/praisewithpsalms.py 8            # Day 8
+python scripts/praisewithpsalms.py --no-compare # Without comparison
+python scripts/praisewithpsalms.py 1-5 --trans cuvt,ncvs  # Different translations
 ```
+Output filenames: `赞美诗篇第1天_詩1-5_對照文理和合本.mp3`
 
 **Wisdom & Praise** – 30-day plan combining all 150 Psalms (5/day) and Proverbs 1–30 (1/day), inspired by Billy Graham's practice of reading Psalms to learn how to praise God and Proverbs to learn how to live wisely. Generates a single 1.5× BGM file per day. Input is a day number or range — no calendar dates needed.
 ```bash
