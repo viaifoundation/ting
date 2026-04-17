@@ -117,6 +117,7 @@ Examples:
     parser.add_argument("--chapters-dir", type=str, default=None, help="Chapters dir (default: assets/bible/audio/chapters)")
     parser.add_argument("--chapters-dir-davidyen", type=str, default=None, help="David Yen chapters dir")
     parser.add_argument("--chapter-voice", type=str, choices=["male", "female", "rotate"], default="rotate", help="Voice source for Everest/David Yen (default: rotate)")
+    parser.add_argument("--voice-rotation-start", type=int, default=0, help="Starting index for voice rotation (e.g. use day number)")
     parser.add_argument("--use-tts", action="store_true", help="Use TTS chapters instead of Everest")
     parser.add_argument("--interleave-tts", action="store_true", help="Interleave Everest and TTS chapters (Everest then TTS)")
     parser.add_argument(
@@ -207,8 +208,8 @@ Examples:
     combined = AudioSegment.empty()
     silence = AudioSegment.silent(duration=args.gap_ms)
 
-    # Voice rotation counter
-    voice_rotation_idx = 0
+    # Voice rotation counter (initialized from arg to allow cross-day continuity)
+    voice_rotation_idx = args.voice_rotation_start
 
     for book, chapter in pairs:
         fname = f"{book:03d}_{chapter:03d}.mp3"

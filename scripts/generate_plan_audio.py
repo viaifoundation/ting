@@ -182,6 +182,7 @@ def main():
                     cmd.extend(["--trans", args.trans])
                 if args.chapter_voice:
                     cmd.extend(["--chapter-voice", args.chapter_voice])
+                    cmd.extend(["--voice-rotation-start", str(day)])
                 subprocess.run(cmd, check=True)
                 print(f"Day {day}: {out_file.name}")
         else:
@@ -205,6 +206,7 @@ def main():
                 cmd.extend(["--trans", args.trans])
             if args.chapter_voice:
                 cmd.extend(["--chapter-voice", args.chapter_voice])
+                cmd.extend(["--voice-rotation-start", str(day)])
             subprocess.run(cmd, check=True)
             print(f"Day {day}: {out_file.name}")
 
