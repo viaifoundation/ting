@@ -80,6 +80,13 @@ def main():
         help="1=4 files (1x plain+1.5x+2x BGM), 2=4 files (1x plain+BGM), 3=7 files (all); default 1",
     )
     parser.add_argument("--use-tts", action="store_true", help="Use TTS audio instead of Everest")
+    parser.add_argument(
+        "--chapter-voice",
+        type=str,
+        choices=["male", "female", "rotate"],
+        default="rotate",
+        help="Voice source for Everest/David Yen (default: rotate)",
+    )
     args = parser.parse_args()
 
     plan_start = date.fromisoformat(args.plan_start_date)
@@ -171,6 +178,8 @@ def main():
         ]
         if args.use_tts:
             base.append("--use-tts")
+        if args.chapter_voice:
+            base.extend(["--chapter-voice", args.chapter_voice])
         done = []
         if preset in (1, 2, 3):
             subprocess.run(base + ["--speed", "1"], check=True)

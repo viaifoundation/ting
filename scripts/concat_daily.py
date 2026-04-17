@@ -115,6 +115,8 @@ Examples:
     parser.add_argument("--chapters-file", "-f", type=str, help="File with one book:chapter per line")
     parser.add_argument("--output", "-o", type=str, required=True, help="Output MP3 path")
     parser.add_argument("--chapters-dir", type=str, default=None, help="Chapters dir (default: assets/bible/audio/chapters)")
+    parser.add_argument("--chapters-dir-davidyen", type=str, default=None, help="David Yen chapters dir")
+    parser.add_argument("--chapter-voice", type=str, choices=["male", "female", "rotate"], default="rotate", help="Voice source for Everest/David Yen (default: rotate)")
     parser.add_argument("--use-tts", action="store_true", help="Use TTS chapters instead of Everest")
     parser.add_argument("--interleave-tts", action="store_true", help="Interleave Everest and TTS chapters (Everest then TTS)")
     parser.add_argument(
@@ -199,10 +201,14 @@ Examples:
 
     tts_dir = repo_root / "assets" / "bible" / "audio" / "chapters_tts"
     everest_dir = repo_root / "assets" / "bible" / "audio" / "chapters"
+    davidyen_dir = Path(args.chapters_dir_davidyen) if args.chapters_dir_davidyen else repo_root / "assets" / "bible" / "audio" / "chapters_davidyen"
 
     # Load and concatenate
     combined = AudioSegment.empty()
     silence = AudioSegment.silent(duration=args.gap_ms)
+
+    # Voice rotation counter
+    voice_rotation_idx = 0
 
     for book, chapter in pairs:
         fname = f"{book:03d}_{chapter:03d}.mp3"
@@ -251,21 +257,57 @@ Examples:
                     print(f"⚠️ Missing {trans_name} TTS (generation failed): {path_trans}")
 
         else:
-            path = chapters_dir / fname
+            # Determine primary and secondary chapter directories based on voice choice
+            mode = args.chapter_voice
+            if mode == "rotate":
+                current_source = "everest" if voice_rotation_idx % 2 == 0 else "davidyen"
+                voice_rotation_idx += 1
+            elif mode == "male":
+                current_source = "davidyen"
+            else:
+                current_source = "everest"
+
+            # Setup paths
+            path_ev = everest_dir / fname
+            path_dy = davidyen_dir / fname
+            
+            # Select path based on source with fallback
+            if current_source == "davidyen":
+                path = path_dy if path_dy.exists() else path_ev
+                is_davidyen = path == path_dy
+            else:
+                path = path_ev if path_ev.exists() else path_dy
+                is_davidyen = path == path_dy
+
             if not path.exists() and args.use_tts:
                 print(f"  Generating missing TTS on the fly: {fname}")
                 subprocess.run([
                     sys.executable, str(repo_root / "scripts" / "generate_psalms_tts.py"),
                     "--book", str(book), "--start", str(chapter), "--end", str(chapter)
                 ], check=False)
+                path = tts_dir / fname
+                is_davidyen = False
 
             if not path.exists():
                 print(f"⚠️ Missing: {path}")
                 continue
+            
             seg = _load_mp3(path)
-            # Apply speed ONLY if it is Everest audio (not TTS)
-            if args.speed > 1.0 and not args.use_tts:
+            
+            # Apply hardcoded leveling boosts
+            # Everest: +6dB, David Yen: +2dB, TTS: +0dB
+            if not args.use_tts and path.parent != tts_dir:
+                base_boost = 2.0 if is_davidyen else 6.0
+                seg = seg + base_boost
+            
+            # Apply user speech-volume
+            if args.speech_volume != 0:
+                seg = seg + args.speech_volume
+
+            # Apply speed ONLY if it is pre-recorded audio (not TTS)
+            if args.speed > 1.0 and not args.use_tts and path.parent != tts_dir:
                 seg = _speedup_ffmpeg(seg, args.speed)
+                
             combined += seg + silence
 
             # Comparison translations (non-interleave mode)

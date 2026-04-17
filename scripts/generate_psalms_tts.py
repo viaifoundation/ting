@@ -30,6 +30,10 @@ import edge_tts
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+import sys
+sys.path.insert(0, str(REPO_ROOT))
+from text_cleaner import clean_text_for_tts
+
 DB_PATH = REPO_ROOT.parent / "devotion_tts" / "assets" / "bible" / "db" / "bible.sqlite"
 # Default output dir (cuvc, kept for backward compatibility)
 DEFAULT_OUT_DIR = REPO_ROOT / "assets" / "bible" / "audio" / "chapters_tts"
@@ -142,6 +146,7 @@ Examples:
                 prefix = f"第{ch}章\n\n"
 
             full_text = prefix + "\n".join(verses)
+            full_text = clean_text_for_tts(full_text)
             voice = VOICES[(ch - 1) % len(VOICES)]
 
             out_file = out_dir / f"{args.book:03d}_{ch:03d}.mp3"

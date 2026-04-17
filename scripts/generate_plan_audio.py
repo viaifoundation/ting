@@ -95,6 +95,7 @@ def main():
     parser.add_argument("--bgm", action="store_true", help="Add background music")
     parser.add_argument("--bgm-volume", type=int, default=-20)
     parser.add_argument("--speed", type=float, default=1.0, help="Playback speed (e.g. 2.0 = 2x)")
+    parser.add_argument("--chapter-voice", type=str, choices=["male", "female", "rotate"], default="rotate", help="Voice source for Everest/David Yen (default: rotate)")
     parser.add_argument("--bgm-splits", type=int, default=1,
                         help="Split BGM output into N files (1x->3, 1.5x->2, 2x->1)")
     parser.add_argument("--start-date", type=str, default="2026-02-17",
@@ -179,6 +180,8 @@ def main():
                 if args.compare:
                     cmd.append("--compare")
                     cmd.extend(["--trans", args.trans])
+                if args.chapter_voice:
+                    cmd.extend(["--chapter-voice", args.chapter_voice])
                 subprocess.run(cmd, check=True)
                 print(f"Day {day}: {out_file.name}")
         else:
@@ -200,6 +203,8 @@ def main():
             if args.compare:
                 cmd.append("--compare")
                 cmd.extend(["--trans", args.trans])
+            if args.chapter_voice:
+                cmd.extend(["--chapter-voice", args.chapter_voice])
             subprocess.run(cmd, check=True)
             print(f"Day {day}: {out_file.name}")
 

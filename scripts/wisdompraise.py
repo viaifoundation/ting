@@ -92,6 +92,13 @@ Examples:
         help="Use TTS audio instead of Everest",
     )
     parser.add_argument(
+        "--chapter-voice",
+        type=str,
+        choices=["male", "female", "rotate"],
+        default="rotate",
+        help="Voice source for Everest/David Yen (default: rotate)",
+    )
+    parser.add_argument(
         "--interleave-tts",
         action="store_true",
         default=False,
@@ -197,6 +204,8 @@ Examples:
         ]
         if args.use_tts:
             cmd.append("--use-tts")
+        if args.chapter_voice:
+            cmd.extend(["--chapter-voice", args.chapter_voice])
         if args.interleave_tts:
             cmd.append("--interleave-tts")
         if args.compare:
