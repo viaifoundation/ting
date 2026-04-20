@@ -52,6 +52,11 @@ python scripts/concat_daily.py -c "1:1,1:2" -o day.mp3 --bgm --bgm-volume -20 --
 # 2x speed (atempo, pitch preserved)
 python scripts/concat_daily.py -c "1:1,1:2" -o day.mp3 --speed 2
 
+# Recorded chapter voices (Everest = female, David Yen = male); per-source dB leveling before --speech-volume
+python scripts/concat_daily.py -c "19:1,19:2" -o day.mp3 --chapter-voice male_then_female
+# Choices: male | female | rotate | male_then_female | female_then_male | duplicate_random
+# duplicate_random: optional --duplicate-random-seed N for reproducible order per chapter
+
 # Mix BGM into an existing audio file
 python scripts/mix_bgm.py -i daily_001.mp3 --bgm --bgm-track AmazingGrace.mp3
 ```
@@ -133,21 +138,32 @@ python scripts/praisewithpsalms.py 1-5 --trans cuvt,ncvs  # Different translatio
 ```
 Output filenames: `赞美诗篇第1天_詩1-5_對照文理和合本.mp3`
 
-**Wisdom & Praise** – 30-day plan combining all 150 Psalms (5/day) and Proverbs 1–30 (1/day), inspired by Billy Graham's practice of reading Psalms to learn how to praise God and Proverbs to learn how to live wisely. Generates a single 1.5× BGM file per day. Input is a day number or range — no calendar dates needed.
+**Wisdom & Praise (Psalms + Proverbs)** – full Psalms (150) and Proverbs (31) split across **30, 45, 60, or 90 days** (`wisdom-praise-{30,45,60,90}days.json`). Regenerate JSON from the repo root:
+
 ```bash
-python scripts/wisdompraise.py 1          # Day 1
-python scripts/wisdompraise.py 1-5        # Days 1–5
-python scripts/wisdompraise.py 16-17      # Days 16–17
-python scripts/wisdompraise.py 1-30       # All 30 days
+python scripts/build_wisdom_praise_plans.py
 ```
-Output filenames use Traditional Chinese abbreviations, e.g.:
+
+**`wisdompraise.py`** – 1.5× + BGM per day; day number or range (no calendar dates). Default chapter voice is **male then female** per chapter (`--chapter-voice male_then_female`). Also: `female_then_male`, `duplicate_random` (+ optional `--duplicate-random-seed`), `rotate`, `male`, `female`.
+
+```bash
+python scripts/wisdompraise.py 1
+python scripts/wisdompraise.py 1-5 --plan wisdom-praise-90days
+python scripts/wisdompraise.py 1-30 --chapter-voice rotate
 ```
-30天智慧讚美第01天_詩1-5_箴1.mp3
-30天智慧讚美第16天_詩76-80_箴16.mp3
-30天智慧讚美第30天_詩146-150_箴30.mp3
+
+**`praise90.py`** – same pipeline with **`--voice-mode`** (`male_female` default, `female_male`, `duplicate_random`, `male`, `female`, `rotate`). Defaults to plan `wisdom-praise-90days`.
+
+```bash
+python scripts/praise90.py 1
+python scripts/praise90.py 1-7 --voice-mode rotate
+python scripts/praise90.py 1-5 --plan wisdom-praise-60days --voice-mode female_male
 ```
-Plan file: `assets/bible/plans/wisdom-praise-30days.json`  
-Options: `-o <dir>`, `--speech-volume` (default 4), `--use-tts`, `--interleave-tts`
+
+Output filenames use Traditional Chinese abbreviations, e.g. `30天智慧讚美第01天_詩1-5_箴1.mp3`. Day 30 of the 30-day plan includes Proverbs 30–31.
+
+Plan files: `assets/bible/plans/wisdom-praise-{30,45,60,90}days.json`  
+Shared options: `-o`, `--speech-volume` (default 4), `--use-tts`, `--interleave-tts`, `--compare`, `--trans`
 
 **New Testament Challenges** – Dedicated scripts for focused New Testament study, following the `wisdompraise.py` method (single 1.5× BGM file per day). These scripts generate a consolidated daily audio file at high speed with background music.
 - **NT in 40 Days**: `python scripts/nt40.py 1-40`

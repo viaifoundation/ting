@@ -1,23 +1,18 @@
 #!/usr/bin/env python3
 """
-Generate Psalms & Proverbs 30-day reading plan audio.
+Generate Psalms & Proverbs reading-plan audio (30/45/60/90-day JSON in assets/bible/plans/).
 
-Input is a day number (1–30) or a range (e.g. 1-5, 16-17).
-Produces one file per day at 1.5x speed with background music.
-Filename format: 30天智慧讚美第01天_詩1-5_箴1.mp3
+Default: each chapter is read twice — David Yen (male) then Everest (female) — see
+`--chapter-voice`. Input is a day number or range (e.g. 1-5). Output uses 1.5x + BGM.
 
-Translation comparison (--compare-translations):
-  When enabled, each chapter plays: CUV Everest (or primary TTS), then TTS for
-  each translation in --translations (comma-separated). Supported translations:
-  cuvc/cuvs (CUV Simplified, default), cuvt (CUV Traditional),
-  ncvs (New Chinese Version), lcvs (Living Chinese), clbs (Chinese Living Bible).
+Translation comparison (--compare):
+  After each chapter’s primary audio (both voices if male_then_female), append TTS for
+  each translation in --trans (cuvc, cuvt, ncvs, lcvs, clbs).
 
 Usage:
   python scripts/wisdompraise.py 1
-  python scripts/wisdompraise.py 1-5
-  python scripts/wisdompraise.py 16-17
-  python scripts/wisdompraise.py 1-30
-  python scripts/wisdompraise.py 1-5 --compare               # compare with cuvc
+  python scripts/wisdompraise.py 1-5 --plan wisdom-praise-90days
+  python scripts/wisdompraise.py 1-30 --chapter-voice rotate
   python scripts/wisdompraise.py 1-5 --compare --trans cuvt,ncvs,clbs
 """
 
@@ -36,7 +31,7 @@ from plan_utils import (
     load_plan,
 )
 
-PLAN_ID = "wisdom-praise-30days"
+DEFAULT_PLAN_ID = "wisdom-praise-30days"
 
 
 def parse_day_range(spec: str) -> list[int]:
@@ -77,7 +72,17 @@ Examples:
     parser.add_argument(
         "days",
         type=str,
-        help="Day number (1–30) or range (e.g. 1-5, 16-17)",
+        help="Day number or range (e.g. 1-5); must fit the selected plan length",
+    )
+    parser.add_argument(
+        "--plan",
+        type=str,
+        default=DEFAULT_PLAN_ID,
+        metavar="PLAN_ID",
+        help=(
+            "Plan JSON id (default: wisdom-praise-30days). "
+            "Also: wisdom-praise-45days, wisdom-praise-60days, wisdom-praise-90days"
+        ),
     )
     parser.add_argument(
         "-o", "--output",
@@ -94,9 +99,26 @@ Examples:
     parser.add_argument(
         "--chapter-voice",
         type=str,
-        choices=["male", "female", "rotate"],
-        default="rotate",
-        help="Voice source for Everest/David Yen (default: rotate)",
+        choices=[
+            "male",
+            "female",
+            "rotate",
+            "male_then_female",
+            "female_then_male",
+            "duplicate_random",
+        ],
+        default="male_then_female",
+        help=(
+            "male_then_female / female_then_male / duplicate_random: twice per chapter; "
+            "rotate=alternate each chapter; male/female=single. Default: male_then_female"
+        ),
+    )
+    parser.add_argument(
+        "--duplicate-random-seed",
+        type=int,
+        default=None,
+        metavar="N",
+        help="For duplicate_random: reproducible per-chapter order (omit = random)",
     )
     parser.add_argument(
         "--interleave-tts",
@@ -133,8 +155,8 @@ Examples:
         print(f"❌ {e}")
         return 1
 
-    # Load plan
-    plan_path = REPO_ROOT / "assets" / "bible" / "plans" / f"{PLAN_ID}.json"
+    plan_id = args.plan.strip()
+    plan_path = REPO_ROOT / "assets" / "bible" / "plans" / f"{plan_id}.json"
     if not plan_path.exists():
         print(f"❌ Plan not found: {plan_path}")
         return 1
@@ -162,7 +184,7 @@ Examples:
         print("❌ No valid days to generate.")
         return 1
 
-    out_dir = Path(args.output) if args.output else REPO_ROOT / "audio" / PLAN_ID
+    out_dir = Path(args.output) if args.output else REPO_ROOT / "audio" / plan_id
     out_dir.mkdir(parents=True, exist_ok=True)
 
     generate = REPO_ROOT / "scripts" / "generate_plan_audio.py"
@@ -177,7 +199,7 @@ Examples:
         en = chapters_to_english(chapters)
         print(f"\n--- Day {day_num} ---", flush=True)
         print("[en]",  flush=True)
-        print(f"{plan.get('name', PLAN_ID)} Day {day_num}: {en}\n", flush=True)
+        print(f"{plan.get('name', plan_id)} Day {day_num}: {en}\n", flush=True)
         print("[zh_cn]", flush=True)
         print(f"{plan.get('name_zh', '读经计划')} 第{day_num}天：{zh_cn}\n", flush=True)
         print("[zh_tw]", flush=True)
@@ -191,7 +213,7 @@ Examples:
     for day_num, chapters in days_to_generate:
         cmd = [
             sys.executable, str(generate),
-            PLAN_ID,
+            plan_id,
             "-o", str(out_dir),
             "--start-day", str(day_num),
             "--end-day",   str(day_num),
@@ -211,9 +233,11 @@ Examples:
         if args.compare:
             cmd.append("--compare")
             cmd.extend(["--trans", args.trans])
+        if args.duplicate_random_seed is not None:
+            cmd.extend(["--duplicate-random-seed", str(args.duplicate_random_seed)])
 
         subprocess.run(cmd, check=True)
-        print(f"✅ Day {day_num}: 30天智慧讚美第{day_num:02d}天", flush=True)
+        print(f"✅ Day {day_num}: generated", flush=True)
 
     print(f"\nDone. Output: {out_dir}")
     return 0

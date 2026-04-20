@@ -29,6 +29,9 @@ PLAN_FILENAME = {
     "chronological-90days": "90天历史读经第{i}天",
     "psalms-30days": "赞美诗篇第{i}天",
     "wisdom-praise-30days": "30天智慧讚美第{i:02d}天",
+    "wisdom-praise-45days": "45天智慧讚美第{i:02d}天",
+    "wisdom-praise-60days": "60天智慧讚美第{i:02d}天",
+    "wisdom-praise-90days": "90天智慧讚美第{i:02d}天",
     "nt-40days": "40天新約挑戰第{i:02d}天",
     "nt-psalms-proverbs-90days": "90天新約詩篇箴言挑戰第{i:02d}天",
 }
@@ -70,8 +73,15 @@ def main():
     parser = argparse.ArgumentParser(description="Generate daily MP3s from a reading plan")
     parser.add_argument("plan_id", help="Plan ID (e.g. chronological-1year)")
     parser.add_argument("-o", "--output", required=True, help="Output directory")
-    parser.add_argument("--speech-volume", type=int, default=4,
-                        help="Boost speech volume in dB (Everest is quiet, default 4)")
+    parser.add_argument(
+        "--speech-volume",
+        type=int,
+        default=4,
+        help=(
+            "Speech gain in dB (applied per chunk in concat_daily, then again in BGM mix; "
+            "default 4). Everest/David Yen each have a base lift in concat_daily."
+        ),
+    )
     parser.add_argument("--use-tts", action="store_true", help="Use TTS audio instead of Everest")
     parser.add_argument("--interleave-tts", action="store_true", help="Interleave Everest and TTS chapters")
     parser.add_argument(
@@ -95,7 +105,27 @@ def main():
     parser.add_argument("--bgm", action="store_true", help="Add background music")
     parser.add_argument("--bgm-volume", type=int, default=-20)
     parser.add_argument("--speed", type=float, default=1.0, help="Playback speed (e.g. 2.0 = 2x)")
-    parser.add_argument("--chapter-voice", type=str, choices=["male", "female", "rotate"], default="rotate", help="Voice source for Everest/David Yen (default: rotate)")
+    parser.add_argument(
+        "--chapter-voice",
+        type=str,
+        choices=[
+            "male",
+            "female",
+            "rotate",
+            "male_then_female",
+            "female_then_male",
+            "duplicate_random",
+        ],
+        default="rotate",
+        help="Everest/David Yen; duplicate modes read each chapter twice",
+    )
+    parser.add_argument(
+        "--duplicate-random-seed",
+        type=int,
+        default=None,
+        metavar="N",
+        help="For duplicate_random: reproducible per-chapter order (omit = random)",
+    )
     parser.add_argument("--bgm-splits", type=int, default=1,
                         help="Split BGM output into N files (1x->3, 1.5x->2, 2x->1)")
     parser.add_argument("--start-date", type=str, default="2026-02-17",
@@ -183,6 +213,8 @@ def main():
                 if args.chapter_voice:
                     cmd.extend(["--chapter-voice", args.chapter_voice])
                     cmd.extend(["--voice-rotation-start", str(day)])
+                if args.duplicate_random_seed is not None:
+                    cmd.extend(["--duplicate-random-seed", str(args.duplicate_random_seed)])
                 subprocess.run(cmd, check=True)
                 print(f"Day {day}: {out_file.name}")
         else:
@@ -207,6 +239,8 @@ def main():
             if args.chapter_voice:
                 cmd.extend(["--chapter-voice", args.chapter_voice])
                 cmd.extend(["--voice-rotation-start", str(day)])
+            if args.duplicate_random_seed is not None:
+                cmd.extend(["--duplicate-random-seed", str(args.duplicate_random_seed)])
             subprocess.run(cmd, check=True)
             print(f"Day {day}: {out_file.name}")
 

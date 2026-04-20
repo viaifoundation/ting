@@ -16,6 +16,7 @@ Requires: pydub, ffmpeg (for pydub mp3 support), edge-tts (for TTS generation).
 """
 
 import argparse
+import random
 import time
 from pathlib import Path
 
@@ -28,6 +29,12 @@ from pydub import AudioSegment
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import audio_mixer
+
+# Recorded CUV narration (assets/bible/audio/chapters vs chapters_davidyen):
+# Everest is mastered quieter; David Yen tends to read hotter. Gains are applied before
+# --speech-volume. Keep these in sync with devotion_tts/chapter_narration_gain.py.
+NARRATION_BOOST_DAVIDYEN_DB = -1.0  # male (David Yen)
+NARRATION_BOOST_EVEREST_DB = 8.5  # female (Everest)
 
 # Translation name → DB column (must match generate_psalms_tts.TRANSLATION_COLUMNS)
 TRANSLATION_COLUMNS: dict[str, str] = {
@@ -116,7 +123,35 @@ Examples:
     parser.add_argument("--output", "-o", type=str, required=True, help="Output MP3 path")
     parser.add_argument("--chapters-dir", type=str, default=None, help="Chapters dir (default: assets/bible/audio/chapters)")
     parser.add_argument("--chapters-dir-davidyen", type=str, default=None, help="David Yen chapters dir")
-    parser.add_argument("--chapter-voice", type=str, choices=["male", "female", "rotate"], default="rotate", help="Voice source for Everest/David Yen (default: rotate)")
+    parser.add_argument(
+        "--chapter-voice",
+        type=str,
+        choices=[
+            "male",
+            "female",
+            "rotate",
+            "male_then_female",
+            "female_then_male",
+            "duplicate_random",
+        ],
+        default="rotate",
+        help=(
+            "Everest (female) / David Yen (male). "
+            "male_then_female / female_then_male: same chapter twice in that order. "
+            "duplicate_random: twice per chapter, order randomized. "
+            "rotate: alternate each chapter, single pass."
+        ),
+    )
+    parser.add_argument(
+        "--duplicate-random-seed",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "With duplicate_random: optional seed so each chapter's order is reproducible; "
+            "omit for non-deterministic order (SystemRandom)."
+        ),
+    )
     parser.add_argument("--voice-rotation-start", type=int, default=0, help="Starting index for voice rotation (e.g. use day number)")
     parser.add_argument("--use-tts", action="store_true", help="Use TTS chapters instead of Everest")
     parser.add_argument("--interleave-tts", action="store_true", help="Interleave Everest and TTS chapters (Everest then TTS)")
@@ -211,6 +246,13 @@ Examples:
     # Voice rotation counter (initialized from arg to allow cross-day continuity)
     voice_rotation_idx = args.voice_rotation_start
 
+    _dup_modes = ("male_then_female", "female_then_male", "duplicate_random")
+    if args.chapter_voice in _dup_modes and args.use_tts:
+        print(
+            f"⚠️  --chapter-voice {args.chapter_voice} with --use-tts: "
+            "each chapter plays once (single TTS voice)."
+        )
+
     for book, chapter in pairs:
         fname = f"{book:03d}_{chapter:03d}.mp3"
 
@@ -219,6 +261,7 @@ Examples:
             path_ev = everest_dir / fname
             if path_ev.exists():
                 seg_ev = _load_mp3(path_ev)
+                seg_ev = seg_ev + NARRATION_BOOST_EVEREST_DB
                 if args.speed > 1.0:
                     seg_ev = _speedup_ffmpeg(seg_ev, args.speed)
                 combined += seg_ev + silence
@@ -258,60 +301,76 @@ Examples:
                     print(f"⚠️ Missing {trans_name} TTS (generation failed): {path_trans}")
 
         else:
-            # Determine primary and secondary chapter directories based on voice choice
             mode = args.chapter_voice
-            if mode == "rotate":
-                current_source = "everest" if voice_rotation_idx % 2 == 0 else "davidyen"
-                voice_rotation_idx += 1
-            elif mode == "male":
-                current_source = "davidyen"
+
+            def append_primary_for_source(current_source: str) -> None:
+                nonlocal combined
+                path_ev = everest_dir / fname
+                path_dy = davidyen_dir / fname
+                if current_source == "davidyen":
+                    path = path_dy if path_dy.exists() else path_ev
+                    is_davidyen = path == path_dy
+                else:
+                    path = path_ev if path_ev.exists() else path_dy
+                    is_davidyen = path == path_dy
+
+                if not path.exists() and args.use_tts:
+                    print(f"  Generating missing TTS on the fly: {fname}")
+                    subprocess.run([
+                        sys.executable, str(repo_root / "scripts" / "generate_psalms_tts.py"),
+                        "--book", str(book), "--start", str(chapter), "--end", str(chapter)
+                    ], check=False)
+                    path = tts_dir / fname
+                    is_davidyen = False
+
+                if not path.exists():
+                    print(f"⚠️ Missing: {path}")
+                    return
+
+                seg = _load_mp3(path)
+                if not args.use_tts and path.parent != tts_dir:
+                    base_boost = (
+                        NARRATION_BOOST_DAVIDYEN_DB
+                        if is_davidyen
+                        else NARRATION_BOOST_EVEREST_DB
+                    )
+                    seg = seg + base_boost
+                if args.speech_volume != 0:
+                    seg = seg + args.speech_volume
+                if args.speed > 1.0 and not args.use_tts and path.parent != tts_dir:
+                    seg = _speedup_ffmpeg(seg, args.speed)
+                combined += seg + silence
+
+            # Per-chapter: one or two primary passes, then optional comparison TTS
+            if mode == "male_then_female" and not args.use_tts:
+                source_order = ("davidyen", "everest")
+            elif mode == "female_then_male" and not args.use_tts:
+                source_order = ("everest", "davidyen")
+            elif mode == "duplicate_random" and not args.use_tts:
+                if args.duplicate_random_seed is not None:
+                    lr = random.Random((args.duplicate_random_seed, book, chapter))
+                else:
+                    lr = random.SystemRandom()
+                if lr.random() < 0.5:
+                    source_order = ("davidyen", "everest")
+                else:
+                    source_order = ("everest", "davidyen")
+            elif mode in _dup_modes:
+                source_order = ("everest",)  # single TTS pass with --use-tts
             else:
-                current_source = "everest"
+                if mode == "rotate":
+                    current_source = "everest" if voice_rotation_idx % 2 == 0 else "davidyen"
+                    voice_rotation_idx += 1
+                elif mode == "male":
+                    current_source = "davidyen"
+                else:
+                    current_source = "everest"
+                source_order = (current_source,)
 
-            # Setup paths
-            path_ev = everest_dir / fname
-            path_dy = davidyen_dir / fname
-            
-            # Select path based on source with fallback
-            if current_source == "davidyen":
-                path = path_dy if path_dy.exists() else path_ev
-                is_davidyen = path == path_dy
-            else:
-                path = path_ev if path_ev.exists() else path_dy
-                is_davidyen = path == path_dy
+            for current_source in source_order:
+                append_primary_for_source(current_source)
 
-            if not path.exists() and args.use_tts:
-                print(f"  Generating missing TTS on the fly: {fname}")
-                subprocess.run([
-                    sys.executable, str(repo_root / "scripts" / "generate_psalms_tts.py"),
-                    "--book", str(book), "--start", str(chapter), "--end", str(chapter)
-                ], check=False)
-                path = tts_dir / fname
-                is_davidyen = False
-
-            if not path.exists():
-                print(f"⚠️ Missing: {path}")
-                continue
-            
-            seg = _load_mp3(path)
-            
-            # Apply hardcoded leveling boosts
-            # Everest: +6dB, David Yen: +2dB, TTS: +0dB
-            if not args.use_tts and path.parent != tts_dir:
-                base_boost = 2.0 if is_davidyen else 6.0
-                seg = seg + base_boost
-            
-            # Apply user speech-volume
-            if args.speech_volume != 0:
-                seg = seg + args.speech_volume
-
-            # Apply speed ONLY if it is pre-recorded audio (not TTS)
-            if args.speed > 1.0 and not args.use_tts and path.parent != tts_dir:
-                seg = _speedup_ffmpeg(seg, args.speed)
-                
-            combined += seg + silence
-
-            # Comparison translations (non-interleave mode)
+            # Comparison translations (non-interleave mode): once per logical chapter
             for trans_name in compare_translations:
                 trans_dir = (repo_root / "assets" / "bible" / "audio" / "chapters_tts"
                              if trans_name in ("cuvc", "cuvs")
