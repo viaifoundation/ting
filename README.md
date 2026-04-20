@@ -173,14 +173,16 @@ python scripts/wisdompraise.py 1-30 --chapter-voice rotate
 
 **`psalms_proverbs_audio.py`** – Psalms + Proverbs plans (30–372+ days) with **`--voice-mode`** (`male_female` default, `female_male`, `duplicate_random`, `male`, `female`, `rotate`). Defaults to plan `wisdom-praise-90days`. List presets and plans: **`--list-presets`**. The old name `praise90.py` still runs the same script (prints a deprecation note).
 
-**YouVersion Psalms & Proverbs** (`assets/bible/plans/psalms-proverbs-youversion-*.json`): use **`--preset`** (overrides `--plan` / `--voice-mode`):
+**YouVersion Psalms & Proverbs** — `psalms_proverbs_audio.py` has **four** `--preset` values only (each pins a plan JSON + voice mode; overrides `--plan` / `--voice-mode`). Source schedules: [31-day](https://www.bible.com/reading-plans/104-psalms-and-proverbs-in-31-days), [372-day](https://www.bible.com/reading-plans/15-psalms-and-proverbs).
 
-| Preset | Plan | Audio |
-|--------|------|--------|
-| `yv31-rotate` | 31 days | Rotate Everest / David Yen by chapter, one pass each |
-| `yv31-mf` | 31 days | Each chapter: male then female |
-| `yv372-rotate` | 372 days | Rotate, one pass |
-| `yv372-mf` | 372 days | Each chapter: male then female |
+| `--preset` | Plan JSON | Days | Audio |
+|------------|-----------|------|--------|
+| `yv31-rotate` | `psalms-proverbs-youversion-31` | 31 | Rotate narrators by chapter (single pass) |
+| `yv31-mf` | `psalms-proverbs-youversion-31` | 31 | Each chapter: male then female |
+| `yv372-rotate` | `psalms-proverbs-youversion-372` | 372 | Rotate (single pass) |
+| `yv372-mf` | `psalms-proverbs-youversion-372` | 372 | Each chapter: male then female |
+
+Other reading plans (e.g. `wisdom-praise-90days`) are **not** presets: pass **`--plan`** and **`--voice-mode`** instead. **`firstlight.py --preset`** is unrelated (output bundle size: 1 / 2 / 3).
 
 ```bash
 python scripts/psalms_proverbs_audio.py --list-presets
