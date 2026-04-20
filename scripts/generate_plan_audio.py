@@ -23,18 +23,36 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 from plan_utils import chapters_to_filename, BOOK_FILENAME_ABBR_ZH_TW
 
-# plan_id -> Chinese name pattern
+# plan_id -> Chinese name pattern ({i} = day index; use :02d in format spec if desired)
 PLAN_FILENAME = {
     "chronological-1year": "历史读经第{i}天",
     "chronological-90days": "90天历史读经第{i}天",
     "psalms-30days": "赞美诗篇第{i}天",
-    "wisdom-praise-30days": "30天智慧讚美第{i:02d}天",
-    "wisdom-praise-45days": "45天智慧讚美第{i:02d}天",
-    "wisdom-praise-60days": "60天智慧讚美第{i:02d}天",
-    "wisdom-praise-90days": "90天智慧讚美第{i:02d}天",
     "nt-40days": "40天新約挑戰第{i:02d}天",
     "nt-psalms-proverbs-90days": "90天新約詩篇箴言挑戰第{i:02d}天",
 }
+
+# Wisdom & Praise + YouVersion Psalms/Proverbs: "{days}天智慧讚美第{dd}天" or "...對照版..." for double-voice
+WISDOM_PRAISE_STYLE_PLANS = frozenset(
+    {
+        "wisdom-praise-30days",
+        "wisdom-praise-45days",
+        "wisdom-praise-60days",
+        "wisdom-praise-90days",
+        "psalms-proverbs-youversion-31",
+        "psalms-proverbs-youversion-372",
+    }
+)
+_CHAPTER_VOICE_DUP = frozenset(
+    {"male_then_female", "female_then_male", "duplicate_random"}
+)
+
+
+def wisdom_praise_filename_label(plan_days: int, day: int, chapter_voice: str) -> str:
+    """Traditional Chinese base: N天智慧讚美第dd天 vs 對照版 when male/female (or dup random)."""
+    if chapter_voice in _CHAPTER_VOICE_DUP:
+        return f"{plan_days}天智慧讚美對照版第{day:02d}天"
+    return f"{plan_days}天智慧讚美第{day:02d}天"
 PLANS_DIR = REPO_ROOT / "assets" / "bible" / "plans"
 CONCAT_SCRIPT = REPO_ROOT / "scripts" / "concat_daily.py"
 
@@ -135,7 +153,10 @@ def main():
     parser.add_argument(
         "--use-chapter-filename",
         action="store_true",
-        help="Use day+chapter info for filename instead of date prefix (e.g. 30天智慧讚美第01天_詩1-5_箴1)",
+        help=(
+            "Day+chapter base filename (e.g. 90天智慧讚美第01天_詩1_箴1; "
+            "對照版 infix when --chapter-voice is male_then_female / female_then_male / duplicate_random)"
+        ),
     )
     parser.add_argument(
         "--no-speed-label",
@@ -163,6 +184,7 @@ def main():
 
     start_date = date.fromisoformat(args.start_date)
     name_fmt = PLAN_FILENAME.get(args.plan_id, "读经第{i}天")
+    plan_days = plan["days"]
     start = args.start_day
     end = args.end_day or max(e["day"] for e in entries)
 
@@ -175,7 +197,15 @@ def main():
             print(f"Day {day}: skip (no chapters)")
             continue
         d = start_date + timedelta(days=day - 1)
-        if args.use_chapter_filename:
+        if args.plan_id in WISDOM_PRAISE_STYLE_PLANS:
+            label = wisdom_praise_filename_label(plan_days, day, args.chapter_voice)
+            if args.use_chapter_filename:
+                ch_str = chapters_to_filename(chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW)
+                base_name = f"{label}_{ch_str}"
+            else:
+                prefix = d.strftime("%Y%m%d")  # YYYYMMDD
+                base_name = f"{prefix}_{label}"
+        elif args.use_chapter_filename:
             ch_str = chapters_to_filename(chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW)
             base_name = f"{name_fmt.format(i=day)}_{ch_str}"
         else:

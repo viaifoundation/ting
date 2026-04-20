@@ -193,7 +193,7 @@ python scripts/psalms_proverbs_audio.py 1-31 --preset yv31-rotate
 python scripts/psalms_proverbs_audio.py 1-372 --preset yv372-mf
 ```
 
-Output filenames use Traditional Chinese abbreviations, e.g. `30天智慧讚美第01天_詩1-5_箴1.mp3`. Day 30 of the 30-day plan includes Proverbs 30–31.
+Output filenames (wisdom-praise & YouVersion Psalms/Proverbs): `{N}天智慧讚美第{dd}天_…` plus chapter abbreviations; male/female (or duplicate) voices use `{N}天智慧讚美對照版第{dd}天_…`. Example day 1 of 90-day plan: `90天智慧讚美第01天_詩1_箴1.mp3` (rotate) vs `90天智慧讚美對照版第01天_詩1_箴1.mp3` (male→female).
 
 Plan files: `assets/bible/plans/wisdom-praise-{30,45,60,90}days.json`  
 Shared options: `-o`, `--speech-volume` (default 4), `--use-tts`, `--interleave-tts`, `--compare`, `--trans`
