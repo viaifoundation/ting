@@ -9,6 +9,12 @@ Voice modes (--voice-mode):
   male / female — single voice, one pass per chapter
   rotate — alternate by chapter, one pass per chapter (no duplicate)
 
+YouVersion Psalms & Proverbs presets (--preset; sets plan + voice; ignores --plan / --voice-mode):
+  yv31-rotate   — 31-day plan, rotate only (no repeat per chapter)
+  yv31-mf       — 31-day plan, male then female (each chapter twice)
+  yv372-rotate  — 372-day plan, rotate only
+  yv372-mf      — 372-day plan, male then female
+
 Use --duplicate-random-seed N with duplicate_random for reproducible order.
 
 Recommended plan: wisdom-praise-90days. Alternatives: 60 / 45 / 30 days.
@@ -17,6 +23,8 @@ Usage:
   python scripts/praise90.py 1
   python scripts/praise90.py 1-7 --voice-mode male
   python scripts/praise90.py 1-90 --voice-mode rotate
+  python scripts/praise90.py 1-31 --preset yv31-rotate
+  python scripts/praise90.py 1-372 --preset yv372-mf
 """
 
 from __future__ import annotations
@@ -39,6 +47,14 @@ from plan_utils import (
 
 # Best balance of sustainability vs finishing Psalms + Proverbs: 90 days.
 DEFAULT_PLAN_ID = "wisdom-praise-90days"
+
+# YouVersion Psalms & Proverbs: plan id, praise90 voice-mode key
+YV_PRESETS: dict[str, tuple[str, str]] = {
+    "yv31-rotate": ("psalms-proverbs-youversion-31", "rotate"),
+    "yv31-mf": ("psalms-proverbs-youversion-31", "male_female"),
+    "yv372-rotate": ("psalms-proverbs-youversion-372", "rotate"),
+    "yv372-mf": ("psalms-proverbs-youversion-372", "male_female"),
+}
 
 # CLI --voice-mode → generate_plan_audio --chapter-voice
 VOICE_MODE_TO_CHAPTER_VOICE = {
@@ -84,7 +100,8 @@ def main() -> int:
         description=(
             "Psalms & Proverbs audio. Default: duplicate male→female per chapter; "
             "or male-only, female-only, or alternating rotate (no duplicate). "
-            f"Default plan: {DEFAULT_PLAN_ID} (90 days — recommended)."
+            f"Default plan: {DEFAULT_PLAN_ID} (90 days — recommended). "
+            "Use --preset yv31-* / yv372-* for YouVersion Psalms+Proverbs plans."
         ),
     )
     parser.add_argument(
@@ -93,13 +110,25 @@ def main() -> int:
         help="Day number or range (e.g. 1-5); must be within the chosen plan",
     )
     parser.add_argument(
+        "--preset",
+        type=str,
+        choices=list(YV_PRESETS.keys()),
+        default=None,
+        metavar="NAME",
+        help=(
+            "YouVersion Psalms+Proverbs: yv31-rotate / yv31-mf / yv372-rotate / yv372-mf "
+            "(overrides --plan and --voice-mode)"
+        ),
+    )
+    parser.add_argument(
         "--plan",
         type=str,
         default=DEFAULT_PLAN_ID,
         metavar="PLAN_ID",
         help=(
             f"Default: {DEFAULT_PLAN_ID}. "
-            "Also: wisdom-praise-60days, wisdom-praise-45days, wisdom-praise-30days"
+            "Also: wisdom-praise-60days, wisdom-praise-45days, wisdom-praise-30days, "
+            "psalms-proverbs-youversion-31, psalms-proverbs-youversion-372"
         ),
     )
     parser.add_argument(
@@ -111,7 +140,8 @@ def main() -> int:
         help=(
             "male_female (default): twice per chapter, male→female; "
             "female_male: twice, female→male; duplicate_random: twice, order random per chapter; "
-            "male/female: single voice; rotate: alternate, no duplicate"
+            "male/female: single voice; rotate: alternate, no duplicate. "
+            "Ignored if --preset is set."
         ),
     )
     parser.add_argument(
@@ -148,13 +178,17 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if args.preset:
+        plan_id, voice_mode = YV_PRESETS[args.preset]
+    else:
+        plan_id = args.plan.strip()
+        voice_mode = args.voice_mode
+
     try:
         requested_days = parse_day_range(args.days)
     except ValueError as e:
         print(f"❌ {e}")
         return 1
-
-    plan_id = args.plan.strip()
     plan_path = REPO_ROOT / "assets" / "bible" / "plans" / f"{plan_id}.json"
     if not plan_path.exists():
         print(f"❌ Plan not found: {plan_path}")
@@ -181,19 +215,20 @@ def main() -> int:
         print("❌ No valid days to generate.")
         return 1
 
-    sub = AUDIO_SUBDIR_BY_MODE[args.voice_mode]
+    sub = AUDIO_SUBDIR_BY_MODE[voice_mode]
     out_dir = (
         Path(args.output)
         if args.output
         else REPO_ROOT / "audio" / f"{plan_id}-{sub}"
     )
-    chapter_voice = VOICE_MODE_TO_CHAPTER_VOICE[args.voice_mode]
+    chapter_voice = VOICE_MODE_TO_CHAPTER_VOICE[voice_mode]
     out_dir.mkdir(parents=True, exist_ok=True)
     generate = REPO_ROOT / "scripts" / "generate_plan_audio.py"
 
     print("\n" + "=" * 60, flush=True)
     print(
-        f"Voice mode: {args.voice_mode} ({chapter_voice}) | Plan: {plan_id} ({max_day} days)",
+        f"Voice mode: {voice_mode} ({chapter_voice}) | Plan: {plan_id} ({max_day} days)"
+        + (f" | preset: {args.preset}" if args.preset else ""),
         flush=True,
     )
     print("=" * 60, flush=True)
