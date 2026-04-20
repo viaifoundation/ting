@@ -17,6 +17,9 @@ YouVersion presets (--preset; sets plan + voice; ignores --plan / --voice-mode):
 
 List presets:  python scripts/psalms_proverbs_audio.py --list-presets
 
+Output MP3 base names (via generate_plan_audio --use-chapter-filename): {N}天智慧讚美第{dd}天_…
+or {N}天智慧讚美對照版第{dd}天_… when voice-mode is male_female, female_male, or duplicate_random.
+
 Recommended default plan: wisdom-praise-90days. Alternatives: 60 / 45 / 30 days.
 
 Usage:
@@ -109,6 +112,10 @@ def format_presets_help() -> str:
             "Voice modes (--voice-mode; ignored when --preset is set):",
             "  " + ", ".join(sorted(VOICE_MODE_TO_CHAPTER_VOICE.keys())),
             "",
+            "Output filenames (--use-chapter-filename):",
+            "  {N}天智慧讚美第{dd}天_<abbr>  OR  {N}天智慧讚美對照版第{dd}天_<abbr>",
+            "  (對照版 = male_female, female_male, duplicate_random)",
+            "",
         ]
     )
     return "\n".join(lines).rstrip()
@@ -141,7 +148,8 @@ def main() -> int:
             "Psalms & Proverbs plan audio (30–372+ days). "
             "Default: duplicate male→female per chapter; or rotate / single voice. "
             f"Default plan: {DEFAULT_PLAN_ID}. "
-            "Use --preset for YouVersion 31/372 schedules."
+            "Use --preset for YouVersion 31/372 schedules. "
+            "Filenames: 智慧讚美 vs 智慧讚美對照版 (see --list-presets)."
         ),
         epilog="Run with --list-presets for all --preset names, --plan ids, and --voice-mode values.",
     )

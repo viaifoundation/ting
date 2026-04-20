@@ -4,6 +4,8 @@ Generate Psalms & Proverbs reading-plan audio (30/45/60/90-day JSON in assets/bi
 
 Default: each chapter is read twice — David Yen (male) then Everest (female) — see
 `--chapter-voice`. Input is a day number or range (e.g. 1-5). Output uses 1.5x + BGM.
+With --use-chapter-filename (default here), stems use {N}天智慧讚美對照版第{dd}天_… for
+male_then_female (and 智慧讚美 without 對照版 for rotate / single-voice); see generate_plan_audio.py.
 
 Translation comparison (--compare):
   After each chapter’s primary audio (both voices if male_then_female), append TTS for

@@ -5,6 +5,11 @@ Generate daily MP3s for a reading plan.
 For each day's chapters, assembles audio from Everest CUV (or TTS) and
 optionally appends comparison-translation TTS segments per chapter.
 
+With --use-chapter-filename, wisdom-praise-* and psalms-proverbs-youversion-* use:
+  {N}天智慧讚美第{dd}天_<chapters>  (rotate / single-voice)
+  {N}天智慧讚美對照版第{dd}天_<chapters>  (male_then_female, female_then_male, duplicate_random)
+N = plan days from JSON; dd = day index zero-padded. Other plan IDs use PLAN_FILENAME patterns.
+
 Usage:
   python scripts/generate_plan_audio.py chronological-1year -o audio/
   python scripts/generate_plan_audio.py ninety-day-challenge -o audio/ --speech-volume 4
@@ -53,6 +58,8 @@ def wisdom_praise_filename_label(plan_days: int, day: int, chapter_voice: str) -
     if chapter_voice in _CHAPTER_VOICE_DUP:
         return f"{plan_days}天智慧讚美對照版第{day:02d}天"
     return f"{plan_days}天智慧讚美第{day:02d}天"
+
+
 PLANS_DIR = REPO_ROOT / "assets" / "bible" / "plans"
 CONCAT_SCRIPT = REPO_ROOT / "scripts" / "concat_daily.py"
 
@@ -88,7 +95,12 @@ def get_bgm_suffix(speed: float, part_index: int, total_parts: int) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate daily MP3s from a reading plan")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Generate daily MP3s from a reading plan. "
+            "Wisdom-praise / YV Psalms-Proverbs: see module docstring for 智慧讚美 vs 對照版 filenames."
+        )
+    )
     parser.add_argument("plan_id", help="Plan ID (e.g. chronological-1year)")
     parser.add_argument("-o", "--output", required=True, help="Output directory")
     parser.add_argument(
@@ -135,7 +147,11 @@ def main():
             "duplicate_random",
         ],
         default="rotate",
-        help="Everest/David Yen; duplicate modes read each chapter twice",
+        help=(
+            "Everest/David Yen; duplicate modes read each chapter twice. "
+            "For wisdom-praise / YV psalms-proverbs plans, male_then_female / female_then_male / "
+            "duplicate_random add 對照版 to --use-chapter-filename stems (see module docstring)."
+        ),
     )
     parser.add_argument(
         "--duplicate-random-seed",
