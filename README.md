@@ -85,12 +85,22 @@ python scripts/mix_bgm.py -i daily_001.mp3 --bgm --bgm-track AmazingGrace.mp3
 | 10 | `nt-40days` | 40 | NT in 40 days challenge |
 | 11 | `nt-psalms-proverbs-90days` | 90 | NT, Psalms, & Proverbs in 90 days |
 
+**Curated YouVersion (bible.com)** — popular / classic schedules, same JSON shape as other plans:
+
+| JSON id | Days | Notes |
+|---------|------|--------|
+| `mcheyne-1year-youversion` | 365 | [M'Cheyne](https://www.bible.com/reading-plans/24-mcheyne-one-year-reading-plan) — four readings/day (Crossway) |
+| `psalms-proverbs-youversion-372` | 372 | [Psalms & Proverbs](https://www.bible.com/reading-plans/15-psalms-and-proverbs) — ~2× Psalms & 12× Proverbs / year |
+| `psalms-proverbs-youversion-31` | 31 | [Psalms + Proverbs in 31 days](https://www.bible.com/reading-plans/104-psalms-and-proverbs-in-31-days) |
+| `bible-in-a-year-youversion-abs` | 365 | [Bible in a Year](https://www.bible.com/reading-plans/158-the-bible-in-a-year) (American Bible Society) |
+| `bible-in-a-year-youversion-ligonier` | 365 | [Bible in a Year](https://www.bible.com/reading-plans/1335-bible-in-a-year) (Ligonier — OT + NT) |
 
 **Refresh plans:**
 ```bash
-python scripts/fetch_reading_plans.py --yearly   # Top 7 yearly from Bible Study Tools
-python scripts/fetch_reading_plans.py --90day    # 90-day plans
-python scripts/fetch_reading_plans.py --all      # Everything
+python scripts/fetch_reading_plans.py --yearly     # Top 7 yearly from Bible Study Tools
+python scripts/fetch_reading_plans.py --90day      # 90-day plans (BST + bible.com chronological)
+python scripts/fetch_reading_plans.py --youversion # Curated YouVersion plans (slow: ~13 min, many HTTP requests)
+python scripts/fetch_reading_plans.py --all        # BST yearly + 90-day only (not YouVersion curated)
 ```
 
 **Generate daily MP3s** (Everest volume is low; use `--speech-volume 4`):
