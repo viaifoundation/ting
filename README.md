@@ -103,6 +103,15 @@ python scripts/fetch_reading_plans.py --youversion # Curated YouVersion plans (s
 python scripts/fetch_reading_plans.py --all        # BST yearly + 90-day only (not YouVersion curated)
 ```
 
+**Validate plans** (chapter refs vs Protestant canon; wisdom-praise / psalms-30 / nt-pp90 invariants):
+
+```bash
+python scripts/validate_reading_plans.py
+python scripts/validate_reading_plans.py --plan wisdom-praise-90days
+```
+
+`stay-on-track` warns about intentional catch-up gaps (not every calendar day has an entry).
+
 **Generate daily MP3s** (Everest volume is low; use `--speech-volume 4`):
 ```bash
 python scripts/generate_plan_audio.py chronological-1year -o audio/chronological-1year --speech-volume 4
