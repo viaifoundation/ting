@@ -162,7 +162,7 @@ python scripts/wisdompraise.py 1-5 --plan wisdom-praise-90days
 python scripts/wisdompraise.py 1-30 --chapter-voice rotate
 ```
 
-**`praise90.py`** – same pipeline with **`--voice-mode`** (`male_female` default, `female_male`, `duplicate_random`, `male`, `female`, `rotate`). Defaults to plan `wisdom-praise-90days`.
+**`psalms_proverbs_audio.py`** – Psalms + Proverbs plans (30–372+ days) with **`--voice-mode`** (`male_female` default, `female_male`, `duplicate_random`, `male`, `female`, `rotate`). Defaults to plan `wisdom-praise-90days`. List presets and plans: **`--list-presets`**. The old name `praise90.py` still runs the same script (prints a deprecation note).
 
 **YouVersion Psalms & Proverbs** (`assets/bible/plans/psalms-proverbs-youversion-*.json`): use **`--preset`** (overrides `--plan` / `--voice-mode`):
 
@@ -174,11 +174,12 @@ python scripts/wisdompraise.py 1-30 --chapter-voice rotate
 | `yv372-mf` | 372 days | Each chapter: male then female |
 
 ```bash
-python scripts/praise90.py 1
-python scripts/praise90.py 1-7 --voice-mode rotate
-python scripts/praise90.py 1-5 --plan wisdom-praise-60days --voice-mode female_male
-python scripts/praise90.py 1-31 --preset yv31-rotate
-python scripts/praise90.py 1-372 --preset yv372-mf
+python scripts/psalms_proverbs_audio.py --list-presets
+python scripts/psalms_proverbs_audio.py 1
+python scripts/psalms_proverbs_audio.py 1-7 --voice-mode rotate
+python scripts/psalms_proverbs_audio.py 1-5 --plan wisdom-praise-60days --voice-mode female_male
+python scripts/psalms_proverbs_audio.py 1-31 --preset yv31-rotate
+python scripts/psalms_proverbs_audio.py 1-372 --preset yv372-mf
 ```
 
 Output filenames use Traditional Chinese abbreviations, e.g. `30天智慧讚美第01天_詩1-5_箴1.mp3`. Day 30 of the 30-day plan includes Proverbs 30–31.
