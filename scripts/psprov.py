@@ -25,11 +25,10 @@ Output MP3 bases (via generate_plan_audio --use-chapter-filename):
 Recommended default plan: wisdom-praise-90days. Alternatives: 60 / 45 / 30 days.
 
 Usage:
-  python scripts/psprov.py 1
-  python scripts/psprov.py 1-7 --voice-mode male
-  python scripts/psprov.py 1-90 --voice-mode rotate
-  python scripts/psprov.py 1-31 --preset yv31-rotate
-  python scripts/psprov.py 1-372 --preset yv372-mf
+  python scripts/psprov.py 1             # Default: yv-all (31 & 372 day plans, both voice modes)
+  python scripts/psprov.py 1-7
+  python scripts/psprov.py 1 --preset yv31-rotate
+  python scripts/psprov.py 1 --preset none --plan wisdom-praise-90days --voice-mode male
 """
 
 from __future__ import annotations
@@ -101,6 +100,7 @@ def format_presets_help() -> str:
     """Human-readable preset and plan reference for --list-presets / epilog."""
     lines = [
         "Presets (--preset NAME; overrides --plan and --voice-mode):",
+        "Default: yv-all",
         "",
     ]
     for name in sorted(YV_PRESETS.keys()):
@@ -176,12 +176,12 @@ def main() -> int:
     parser.add_argument(
         "--preset",
         type=str,
-        choices=list(YV_PRESETS.keys()),
-        default=None,
+        choices=list(YV_PRESETS.keys()) + ["none"],
+        default="yv-all",
         metavar="NAME",
         help=(
-            "YouVersion Psalms+Proverbs: yv31-rotate / yv31-mf / yv372-rotate / yv372-mf / yv-all "
-            "(overrides --plan and --voice-mode)"
+            "YouVersion Psalms+Proverbs: yv31-rotate / yv31-mf / yv372-rotate / yv372-mf / yv-all. "
+            "Default: yv-all. Use 'none' to use --plan and --voice-mode."
         ),
     )
     parser.add_argument(
@@ -249,7 +249,7 @@ def main() -> int:
     if args.days is None:
         parser.error("argument days: required unless you pass --list-presets")
 
-    if args.preset:
+    if args.preset and args.preset != "none":
         configs = YV_PRESETS[args.preset]
         if isinstance(configs, tuple):
             configs = [configs]

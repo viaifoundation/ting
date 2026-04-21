@@ -173,10 +173,11 @@ python scripts/wisdompraise.py 1-30 --chapter-voice rotate
 
 **`psprov.py`** (**ps** = Psalms, **prov** = Proverbs) — 30–372+ days with **`--voice-mode`** (`male_female` default, `female_male`, `duplicate_random`, `male`, `female`, `rotate`). Defaults to plan `wisdom-praise-90days`. List presets and plans: **`--list-presets`**. Older names `psalms_proverbs_audio.py` and `praise90.py` still forward here (stderr deprecation note).
 
-**YouVersion Psalms & Proverbs** — `psprov.py` exposes **four** `--preset` values only (each pins a plan JSON + voice mode; overrides `--plan` / `--voice-mode`). Source schedules: [31-day](https://www.bible.com/reading-plans/104-psalms-and-proverbs-in-31-days), [372-day](https://www.bible.com/reading-plans/15-psalms-and-proverbs).
+**YouVersion Psalms & Proverbs** — `psprov.py` exposes **five** `--preset` values (each pins plan JSON(s) + voice mode(s); overrides `--plan` / `--voice-mode`). Source schedules: [31-day](https://www.bible.com/reading-plans/104-psalms-and-proverbs-in-31-days), [372-day](https://www.bible.com/reading-plans/15-psalms-and-proverbs).
 
 | `--preset` | Plan JSON | Days | Audio |
 |------------|-----------|------|--------|
+| `yv-all` | `ps31`, `ps372` | 31, 372 | **Default**: both plans, both voice modes (4 files/day) |
 | `yv31-rotate` | `psalms-proverbs-youversion-31` | 31 | Rotate narrators by chapter (single pass) |
 | `yv31-mf` | `psalms-proverbs-youversion-31` | 31 | Each chapter: male then female |
 | `yv372-rotate` | `psalms-proverbs-youversion-372` | 372 | Rotate (single pass) |
@@ -186,11 +187,10 @@ Other reading plans (e.g. `wisdom-praise-90days`) are **not** presets: pass **`-
 
 ```bash
 python scripts/psprov.py --list-presets
-python scripts/psprov.py 1
-python scripts/psprov.py 1-7 --voice-mode rotate
-python scripts/psprov.py 1-5 --plan wisdom-praise-60days --voice-mode female_male
-python scripts/psprov.py 1-31 --preset yv31-rotate
-python scripts/psprov.py 1-372 --preset yv372-mf
+python scripts/psprov.py 1             # Default: yv-all (31 & 372 day plans, both voice modes)
+python scripts/psprov.py 1-7
+python scripts/psprov.py 1 --preset yv31-mf
+python scripts/psprov.py 1 --preset none --plan wisdom-praise-90days --voice-mode rotate
 ```
 
 Output filenames (wisdom-praise & YouVersion Psalms/Proverbs): descriptive `{N}天智慧讚美第{dd}天-{chapters}.mp3`. Double-voice: `{N}天智慧讚美對照第{dd}天-…`. Example day 1 of 90-day plan: `90天智慧讚美第01天-詩1-箴1.mp3` vs `90天智慧讚美對照第01天-詩1-箴1.mp3`. Details: `generate_plan_audio.py` module docstring; `psprov.py --list-presets`.
