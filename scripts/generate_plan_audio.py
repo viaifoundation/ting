@@ -5,10 +5,11 @@ Generate daily MP3s for a reading plan.
 For each day's chapters, assembles audio from Everest CUV (or TTS) and
 optionally appends comparison-translation TTS segments per chapter.
 
-With --use-chapter-filename, wisdom-praise-* and psalms-proverbs-youversion-* use:
-  {N}天智慧讚美第{dd}天_<chapters>  (rotate / single-voice)
-  {N}天智慧讚美對照版第{dd}天_<chapters>  (male_then_female, female_then_male, duplicate_random)
-N = plan days from JSON; dd = day index zero-padded. Other plan IDs use PLAN_FILENAME patterns.
+With --use-chapter-filename, wisdom-praise-* and psalms-proverbs-youversion-* use descriptive stems:
+  {N}天智慧讚美第{dd}天-{chapters}  (rotate / single-voice)
+  {N}天智慧讚美對照第{dd}天-{chapters}  (male_then_female, female_then_male; 對照 = parallel version)
+N = plan days from JSON; dd = day index zero-padded; chapter groups joined with \"-\".
+Other plan IDs use PLAN_FILENAME patterns; chapter groups default joiner \"-\" here.
 
 Usage:
   python scripts/generate_plan_audio.py chronological-1year -o audio/
@@ -37,7 +38,7 @@ PLAN_FILENAME = {
     "nt-psalms-proverbs-90days": "90天新約詩篇箴言挑戰第{i:02d}天",
 }
 
-# Wisdom & Praise + YouVersion Psalms/Proverbs: "{days}天智慧讚美第{dd}天" or "...對照版..." for double-voice
+# Wisdom & Praise + YouVersion Psalms/Proverbs: short stems 智讚{N}-{dd} / 智讚對{N}-{dd}
 WISDOM_PRAISE_STYLE_PLANS = frozenset(
     {
         "wisdom-praise-30days",
@@ -54,10 +55,11 @@ _CHAPTER_VOICE_DUP = frozenset(
 
 
 def wisdom_praise_filename_label(plan_days: int, day: int, chapter_voice: str) -> str:
-    """Traditional Chinese base: N天智慧讚美第dd天 vs 對照版 when male/female (or dup random)."""
+    """Descriptive stem: {N}天智慧讚美第{dd}天 or {N}天智慧讚美對照第{dd}天."""
+    dd = f"{day:02d}"
     if chapter_voice in _CHAPTER_VOICE_DUP:
-        return f"{plan_days}天智慧讚美對照版第{day:02d}天"
-    return f"{plan_days}天智慧讚美第{day:02d}天"
+        return f"{plan_days}天智慧讚美對照第{dd}天"
+    return f"{plan_days}天智慧讚美第{dd}天"
 
 
 PLANS_DIR = REPO_ROOT / "assets" / "bible" / "plans"
@@ -98,7 +100,7 @@ def main():
     parser = argparse.ArgumentParser(
         description=(
             "Generate daily MP3s from a reading plan. "
-            "Wisdom-praise / YV Psalms-Proverbs: see module docstring for 智慧讚美 vs 對照版 filenames."
+            "Wisdom-praise / YV Psalms-Proverbs: see module docstring for descriptive stems."
         )
     )
     parser.add_argument("plan_id", help="Plan ID (e.g. chronological-1year)")
@@ -149,8 +151,7 @@ def main():
         default="rotate",
         help=(
             "Everest/David Yen; duplicate modes read each chapter twice. "
-            "For wisdom-praise / YV psalms-proverbs plans, male_then_female / female_then_male / "
-            "duplicate_random add 對照版 to --use-chapter-filename stems (see module docstring)."
+            "duplicate_random use descriptive stems (see module docstring)."
         ),
     )
     parser.add_argument(
@@ -170,8 +171,7 @@ def main():
         "--use-chapter-filename",
         action="store_true",
         help=(
-            "Day+chapter base filename (e.g. 90天智慧讚美第01天_詩1_箴1; "
-            "對照版 infix when --chapter-voice is male_then_female / female_then_male / duplicate_random)"
+            "Day+chapter base (e.g. 90天智慧讚美第01天-詩1-箴1; 對照 = parallel version)"
         ),
     )
     parser.add_argument(
@@ -213,20 +213,25 @@ def main():
             print(f"Day {day}: skip (no chapters)")
             continue
         d = start_date + timedelta(days=day - 1)
+        _ch_join = "-"
         if args.plan_id in WISDOM_PRAISE_STYLE_PLANS:
             label = wisdom_praise_filename_label(plan_days, day, args.chapter_voice)
             if args.use_chapter_filename:
-                ch_str = chapters_to_filename(chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW)
-                base_name = f"{label}_{ch_str}"
+                ch_str = chapters_to_filename(
+                    chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW, between_groups=_ch_join
+                )
+                base_name = f"{label}-{ch_str}"
             else:
                 prefix = d.strftime("%Y%m%d")  # YYYYMMDD
-                base_name = f"{prefix}_{label}"
+                base_name = f"{prefix}-{label}"
         elif args.use_chapter_filename:
-            ch_str = chapters_to_filename(chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW)
-            base_name = f"{name_fmt.format(i=day)}_{ch_str}"
+            ch_str = chapters_to_filename(
+                chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW, between_groups=_ch_join
+            )
+            base_name = f"{name_fmt.format(i=day)}-{ch_str}"
         else:
             prefix = d.strftime("%Y%m%d")  # YYYYMMDD
-            base_name = f"{prefix}_{name_fmt.format(i=day)}"
+            base_name = f"{prefix}-{name_fmt.format(i=day)}"
         if args.filename_suffix:
             base_name += args.filename_suffix
 
