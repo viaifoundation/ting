@@ -54,11 +54,17 @@ from plan_utils import (
 DEFAULT_PLAN_ID = "wisdom-praise-90days"
 
 # YouVersion Psalms & Proverbs: preset name → (plan_id, voice_mode key)
-YV_PRESETS: dict[str, tuple[str, str]] = {
+YV_PRESETS: dict[str, tuple[str, str] | list[tuple[str, str]]] = {
     "yv31-rotate": ("psalms-proverbs-youversion-31", "rotate"),
     "yv31-mf": ("psalms-proverbs-youversion-31", "male_female"),
     "yv372-rotate": ("psalms-proverbs-youversion-372", "rotate"),
     "yv372-mf": ("psalms-proverbs-youversion-372", "male_female"),
+    "yv-all": [
+        ("psalms-proverbs-youversion-31", "male_female"),
+        ("psalms-proverbs-youversion-31", "rotate"),
+        ("psalms-proverbs-youversion-372", "male_female"),
+        ("psalms-proverbs-youversion-372", "rotate"),
+    ],
 }
 
 YV_PRESET_BLURBS: dict[str, str] = {
@@ -66,6 +72,7 @@ YV_PRESET_BLURBS: dict[str, str] = {
     "yv31-mf": "YouVersion 31-day; each chapter male→female (two passes)",
     "yv372-rotate": "YouVersion 372-day; alternate narrators (single pass)",
     "yv372-mf": "YouVersion 372-day; each chapter male→female (two passes)",
+    "yv-all": "Bundle: generate both 31 and 372 days, in both male-then-female and rotate modes (4 files per day)",
 }
 
 # CLI --voice-mode → generate_plan_audio --chapter-voice
@@ -173,7 +180,7 @@ def main() -> int:
         default=None,
         metavar="NAME",
         help=(
-            "YouVersion Psalms+Proverbs: yv31-rotate / yv31-mf / yv372-rotate / yv372-mf "
+            "YouVersion Psalms+Proverbs: yv31-rotate / yv31-mf / yv372-rotate / yv372-mf / yv-all "
             "(overrides --plan and --voice-mode)"
         ),
     )
@@ -243,110 +250,85 @@ def main() -> int:
         parser.error("argument days: required unless you pass --list-presets")
 
     if args.preset:
-        plan_id, voice_mode = YV_PRESETS[args.preset]
+        configs = YV_PRESETS[args.preset]
+        if isinstance(configs, tuple):
+            configs = [configs]
     else:
-        plan_id = args.plan.strip()
-        voice_mode = args.voice_mode
+        configs = [(args.plan.strip(), args.voice_mode)]
 
     try:
         requested_days = parse_day_range(args.days)
     except ValueError as e:
         print(f"❌ {e}")
         return 1
-    plan_path = REPO_ROOT / "assets" / "bible" / "plans" / f"{plan_id}.json"
-    if not plan_path.exists():
-        print(f"❌ Plan not found: {plan_path}")
-        return 1
 
-    plan = load_plan(plan_path)
-    max_day = plan["days"]
-    entries_by_day = {e["day"]: e for e in plan["entries"]}
+    plan_cache = {}
+    generate_script = REPO_ROOT / "scripts" / "generate_plan_audio.py"
 
-    invalid = [d for d in requested_days if d < 1 or d > max_day]
-    if invalid:
-        print(f"❌ Day(s) out of range (plan has {max_day} days): {invalid}")
-        return 1
+    print("\n" + "=" * 60, flush=True)
+    print(f"Runner: {Path(__file__).name} | Days: {args.days} | preset: {args.preset or 'none'}")
+    print("=" * 60, flush=True)
 
-    days_to_generate: list[tuple[int, list]] = []
     for day_num in requested_days:
-        entry = entries_by_day.get(day_num)
-        if not entry or not entry.get("chapters"):
-            print(f"⚠️  Day {day_num}: no chapters, skipping.")
-            continue
-        days_to_generate.append((day_num, entry["chapters"]))
-
-    if not days_to_generate:
-        print("❌ No valid days to generate.")
-        return 1
-
-    sub = AUDIO_SUBDIR_BY_MODE[voice_mode]
-    out_dir = (
-        Path(args.output)
-        if args.output
-        else REPO_ROOT / "audio" / f"{plan_id}-{sub}"
-    )
-    chapter_voice = VOICE_MODE_TO_CHAPTER_VOICE[voice_mode]
-    out_dir.mkdir(parents=True, exist_ok=True)
-    generate = REPO_ROOT / "scripts" / "generate_plan_audio.py"
-
-    print("\n" + "=" * 60, flush=True)
-    print(
-        f"Voice mode: {voice_mode} ({chapter_voice}) | Plan: {plan_id} ({max_day} days)"
-        + (f" | preset: {args.preset}" if args.preset else ""),
-        flush=True,
-    )
-    print("=" * 60, flush=True)
-
-    for day_num, chapters in days_to_generate:
-        zh_cn = chapters_to_chinese(chapters, BOOK_CHINESE)
-        zh_tw = chapters_to_chinese(chapters, BOOK_CHINESE_TW)
-        en = chapters_to_english(chapters)
         print(f"\n--- Day {day_num} ---", flush=True)
-        print(f"[en] {plan.get('name', plan_id)} Day {day_num}: {en}\n", flush=True)
-        print(f"[zh_cn] {plan.get('name_zh', '')} 第{day_num}天：{zh_cn}\n", flush=True)
-        print(f"[zh_tw] {plan.get('name_zh_tw', '')} 第{day_num}天：{zh_tw}\n", flush=True)
+        for p_id, v_mode in configs:
+            if p_id not in plan_cache:
+                p_path = REPO_ROOT / "assets" / "bible" / "plans" / f"{p_id}.json"
+                if not p_path.exists():
+                    print(f"⚠️  Plan not found: {p_id}, skipping.")
+                    continue
+                plan_cache[p_id] = load_plan(p_path)
 
-    print("\n" + "=" * 60, flush=True)
-    print(f"Generating MP3… (1.5x + BGM, {chapter_voice})", flush=True)
-    print("=" * 60, flush=True)
+            plan = plan_cache[p_id]
+            max_day = plan["days"]
+            if day_num > max_day:
+                print(f"⏭️  {p_id} (max {max_day}): skipping.")
+                continue
 
-    for day_num, _chapters in days_to_generate:
-        cmd = [
-            sys.executable,
-            str(generate),
-            plan_id,
-            "-o",
-            str(out_dir),
-            "--start-day",
-            str(day_num),
-            "--end-day",
-            str(day_num),
-            "--speech-volume",
-            str(args.speech_volume),
-            "--use-chapter-filename",
-            "--no-speed-label",
-            "--speed",
-            "1.5",
-            "--bgm",
-            "--bgm-splits",
-            "1",
-            "--chapter-voice",
-            chapter_voice,
-        ]
-        if args.use_tts:
-            cmd.append("--use-tts")
-        if args.interleave_tts:
-            cmd.append("--interleave-tts")
-        if args.compare:
-            cmd.append("--compare")
-            cmd.extend(["--trans", args.trans])
-        if args.duplicate_random_seed is not None:
-            cmd.extend(["--duplicate-random-seed", str(args.duplicate_random_seed)])
+            entries_by_day = {e["day"]: e for e in plan["entries"]}
+            entry = entries_by_day.get(day_num)
+            if not entry or not entry.get("chapters"):
+                print(f"⚠️  {p_id}: no chapters.")
+                continue
 
-        subprocess.run(cmd, check=True)
-        print(f"✅ Day {day_num}", flush=True)
+            chapters = entry["chapters"]
+            zh_cn = chapters_to_chinese(chapters, BOOK_CHINESE)
+            en = chapters_to_english(chapters)
+            sub = AUDIO_SUBDIR_BY_MODE[v_mode]
+            out_dir = Path(args.output) if args.output else REPO_ROOT / "audio" / f"{p_id}-{sub}"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            ch_voice = VOICE_MODE_TO_CHAPTER_VOICE[v_mode]
 
-    print(f"\nDone. Output: {out_dir}")
+            print(f"[{p_id} | {v_mode}] {zh_cn} ({en})", flush=True)
+
+            cmd = [
+                sys.executable,
+                str(generate_script),
+                p_id,
+                "-o", str(out_dir),
+                "--start-day", str(day_num),
+                "--end-day", str(day_num),
+                "--speech-volume", str(args.speech_volume),
+                "--use-chapter-filename",
+                "--no-speed-label",
+                "--speed", "1.5",
+                "--bgm",
+                "--bgm-splits", "1",
+                "--chapter-voice", ch_voice,
+            ]
+            if args.use_tts:
+                cmd.append("--use-tts")
+            if args.interleave_tts:
+                cmd.append("--interleave-tts")
+            if args.compare:
+                cmd.append("--compare")
+                cmd.extend(["--trans", args.trans])
+            if args.duplicate_random_seed is not None:
+                cmd.extend(["--duplicate-random-seed", str(args.duplicate_random_seed)])
+
+            subprocess.run(cmd, check=True)
+
+    print(f"\nDone.")
     return 0
 
 
