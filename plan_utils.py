@@ -274,6 +274,7 @@ BOOK_FILENAME_ABBR_ZH_TW: dict[int, str] = {
 def chapters_to_filename(
     chapters: list[str],
     abbr: dict[int, str] | None = None,
+    between_groups: str = "_",
 ) -> str:
     """
     Convert a list of 'book:chapter' strings into a compact filename-safe string.
@@ -285,6 +286,7 @@ def chapters_to_filename(
         abbr:     book-number -> abbreviation mapping.
                   Defaults to BOOK_FILENAME_ABBR (English, e.g. 'ps', 'prov').
                   Pass BOOK_FILENAME_ABBR_ZH_TW for Traditional Chinese (e.g. '詩', '箴').
+        between_groups: joiner between book-groups (default \"_\"; use \"-\" for shorter names).
 
     Example (English):  ['19:1'...'19:5','20:1'] -> 'ps1-5_prov1'
     Example (zh_tw):    ['19:1'...'19:5','20:1'] -> '詩1-5_箴1'
@@ -313,7 +315,7 @@ def chapters_to_filename(
             parts.append(f"{book_abbr}{ch_nums[0]}")
         else:
             parts.append(f"{book_abbr}{ch_nums[0]}-{ch_nums[-1]}")
-    return "_".join(parts)
+    return between_groups.join(parts)
 
 
 def load_plan(path: Path) -> dict:

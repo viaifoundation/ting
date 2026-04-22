@@ -2,9 +2,13 @@
 """
 Regenerate assets/bible/plans/wisdom-praise-{30,45,60,90}days.json.
 
-Each plan covers all 150 Psalms + 31 Proverbs. Chapters are assigned per day
-using even remainder distribution (same scheme as the classic 30-day layout:
-N psalm chapters then M proverb chapters per day).
+Rules:
+  - Every day includes at least one Psalm chapter and at least one Proverbs chapter.
+  - All 150 Psalms are read exactly once, in order.
+  - Proverbs: for plans of 31 days or fewer, chapters 1–31 are assigned in order (one day
+    may have two chapters when days == 30). For plans longer than 31 days, each day reads
+    exactly one Proverbs chapter, cycling 1→31→1… (same idea as multi-month “wisdom” plans
+    that revisit Proverbs).
 
 Run from repo root:
   python scripts/build_wisdom_praise_plans.py
@@ -13,7 +17,6 @@ Run from repo root:
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -51,36 +54,65 @@ META = {
 
 
 def distribute(total: int, days: int) -> list[int]:
-    """Split `total` into `days` counts differing by at most 1 (extras on last days)."""
+    """Split `total` into `days` non-negative counts differing by at most 1 (extras on last days)."""
     if days < 1:
         raise ValueError("days must be >= 1")
+    if total < 0:
+        raise ValueError("total must be non-negative")
     base, rem = divmod(total, days)
-    # e.g. 31 proverbs / 30 days → one extra on day 30 only (not day 1)
     return [base + (1 if i >= days - rem else 0) for i in range(days)]
 
 
+def psalm_counts_min_one_per_day(days: int) -> list[int]:
+    """All 150 psalms, sequential, at least one per day. Extras spread on later days."""
+    if days > 150:
+        raise ValueError("Cannot assign 150 psalms with ≥1/day when days > 150")
+    if days < 1:
+        raise ValueError("days must be >= 1")
+    extra_total = 150 - days
+    extras = distribute(extra_total, days)
+    return [1 + e for e in extras]
+
+
 def build_entries(days: int) -> list[dict]:
-    ps_counts = distribute(150, days)
-    pr_counts = distribute(31, days)
-    ps_next, pr_next = 1, 1
-    entries = []
-    for d in range(1, days + 1):
-        i = d - 1
-        chapters: list[str] = []
-        for _ in range(ps_counts[i]):
-            chapters.append(f"{PSALMS}:{ps_next}")
-            ps_next += 1
-        for _ in range(pr_counts[i]):
-            chapters.append(f"{PROVERBS}:{pr_next}")
-            pr_next += 1
-        entries.append({"day": d, "chapters": chapters})
-    assert ps_next == 151, ps_next
-    assert pr_next == 32, pr_next
+    ps_counts = psalm_counts_min_one_per_day(days)
+    ps_next = 1
+    entries: list[dict] = []
+
+    if days <= 31:
+        # Sequential Proverbs 1..31, ≥1 per day
+        extra_pr = 31 - days
+        pr_extras = distribute(extra_pr, days)
+        pr_counts = [1 + e for e in pr_extras]
+        pr_next = 1
+        for d in range(1, days + 1):
+            i = d - 1
+            chapters: list[str] = []
+            for _ in range(ps_counts[i]):
+                chapters.append(f"{PSALMS}:{ps_next}")
+                ps_next += 1
+            for _ in range(pr_counts[i]):
+                chapters.append(f"{PROVERBS}:{pr_next}")
+                pr_next += 1
+            entries.append({"day": d, "chapters": chapters})
+        assert ps_next == 151, ps_next
+        assert pr_next == 32, pr_next
+    else:
+        for d in range(1, days + 1):
+            i = d - 1
+            chapters = []
+            for _ in range(ps_counts[i]):
+                chapters.append(f"{PSALMS}:{ps_next}")
+                ps_next += 1
+            prov_ch = ((d - 1) % 31) + 1
+            chapters.append(f"{PROVERBS}:{prov_ch}")
+            entries.append({"day": d, "chapters": chapters})
+        assert ps_next == 151, ps_next
+
     return entries
 
 
 def plan_stats(days: int) -> tuple[list[int], float, int]:
-    """Returns per-day chapter counts, mean, max."""
     ent = build_entries(days)
     counts = [len(e["chapters"]) for e in ent]
     return counts, sum(counts) / days, max(counts)
@@ -93,7 +125,7 @@ def main() -> int:
         plan = {
             **meta,
             "days": n,
-            "source": "ting/scripts/build_wisdom_praise_plans.py",
+            "source": "ting/scripts/build_wisdom_praise_plans.py (daily Psalms + Proverbs; Proverbs cycle if n>31)",
             "entries": build_entries(n),
         }
         path = OUT_DIR / f"{meta['id']}.json"

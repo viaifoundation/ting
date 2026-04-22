@@ -4,7 +4,7 @@
   "name_zh": "30天智慧赞美读经计划",
   "name_zh_tw": "30天智慧讚美讀經計劃",
   "days": 30,
-  "source": "ting/scripts/build_wisdom_praise_plans.py",
+  "source": "ting/scripts/build_wisdom_praise_plans.py (daily Psalms + Proverbs; Proverbs cycle if n>31)",
   "entries": [
     {
       "day": 1,
