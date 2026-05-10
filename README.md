@@ -9,22 +9,24 @@ Supports background music and volume adjustment (adapted from [devotion_tts](htt
 # Clone and enter repo
 git clone https://github.com/viaifoundation/ting.git && cd ting
 
-# Create virtual environment
-python -m venv venv
+# Create virtual environment (Fast method using uv)
+uv venv
+# Or use the traditional method: python -m venv venv
 
 # Activate venv (do this before running any script)
-source venv/bin/activate   # macOS/Linux
-# venv\Scripts\activate    # Windows
+source .venv/bin/activate   # macOS/Linux
+# .venv\Scripts\activate    # Windows
 
 # Install dependencies
-pip install -r requirements.txt
+uv pip install -r requirements.txt
+# Or traditional: pip install -r requirements.txt
 ```
 
 Requires **ffmpeg** for pydub (mp3 support): `brew install ffmpeg` / `apt install ffmpeg`
 
-**Running commands:** Activate the venv first (`source venv/bin/activate`), then run any script from the repo root. Example:
+**Running commands:** Activate the venv first (`source .venv/bin/activate`), then run any script from the repo root. Example:
 ```bash
-source venv/bin/activate
+source .venv/bin/activate
 python scripts/firstlight.py
 ```
 
@@ -212,7 +214,7 @@ Plan files: `assets/bible/plans/nt-40days.json`, `assets/bible/plans/nt-psalms-p
 
 **Daily cron** – run at 00:05 Kiritimati (e.g. 10:05 UTC) to generate today's MP3s (preset 1 = 4 files):
 ```bash
-5 10 * * * cd /path/to/ting && source venv/bin/activate && python scripts/firstlight.py
+5 10 * * * cd /path/to/ting && source .venv/bin/activate && python scripts/firstlight.py
 ```
 
 ## Layout
