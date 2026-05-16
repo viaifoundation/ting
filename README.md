@@ -221,9 +221,9 @@ Plan files: `assets/bible/plans/nt-40days.json`, `assets/bible/plans/nt-psalms-p
 python scripts/generate_6mo_plan.py
 
 # Generate daily audio (1.5x + BGM, rotate voices)
-python scripts/chrono180.py 1              # Day 1: chrono + Ps+Prov MP3s
-python scripts/chrono180.py 1-7            # Days 1–7
-python scripts/chrono180.py 1 --mp4        # Also generate MP4 video
+python scripts/qt.py 1              # Day 1: chrono + Ps+Prov MP3s
+python scripts/qt.py 1-7            # Days 1–7
+python scripts/qt.py 1 --mp4        # Also generate MP4 video
 ```
 
 Output per day (2 files):
