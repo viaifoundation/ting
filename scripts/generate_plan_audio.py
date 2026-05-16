@@ -49,6 +49,9 @@ WISDOM_PRAISE_STYLE_PLANS = frozenset(
         "psalms-proverbs-youversion-372",
     }
 )
+# Chronological 1-Year: 年度歷史讀經第{d}天 / 年度歷史讀經對照第{d}天
+CHRONO_STYLE_PLANS = frozenset({"chronological-1year", "chronological-6month", "chronological-90days"})
+
 _CHAPTER_VOICE_DUP = frozenset(
     {"male_then_female", "female_then_male", "duplicate_random"}
 )
@@ -60,6 +63,14 @@ def wisdom_praise_filename_label(plan_days: int, day: int, chapter_voice: str) -
     if chapter_voice in _CHAPTER_VOICE_DUP:
         return f"{plan_days}天智慧讚美對照第{dd}天"
     return f"{plan_days}天智慧讚美第{dd}天"
+
+
+def chrono_filename_label(plan_id: str, day: int, chapter_voice: str) -> str:
+    """Descriptive stem: 年度歷史讀經第{d}天 or 半年歷史讀經第{d}天."""
+    prefix = "半年" if "6month" in plan_id else "年度"
+    if chapter_voice in _CHAPTER_VOICE_DUP:
+        return f"{prefix}歷史讀經對照第{day}天"
+    return f"{prefix}歷史讀經第{day}天"
 
 
 PLANS_DIR = REPO_ROOT / "assets" / "bible" / "plans"
@@ -216,6 +227,16 @@ def main():
         _ch_join = "-"
         if args.plan_id in WISDOM_PRAISE_STYLE_PLANS:
             label = wisdom_praise_filename_label(plan_days, day, args.chapter_voice)
+            if args.use_chapter_filename:
+                ch_str = chapters_to_filename(
+                    chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW, between_groups=_ch_join
+                )
+                base_name = f"{label}-{ch_str}"
+            else:
+                prefix = d.strftime("%Y%m%d")  # YYYYMMDD
+                base_name = f"{prefix}-{label}"
+        elif args.plan_id in CHRONO_STYLE_PLANS:
+            label = chrono_filename_label(args.plan_id, day, args.chapter_voice)
             if args.use_chapter_filename:
                 ch_str = chapters_to_filename(
                     chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW, between_groups=_ch_join

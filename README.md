@@ -86,6 +86,8 @@ python scripts/mix_bgm.py -i daily_001.mp3 --bgm --bgm-track AmazingGrace.mp3
 | 9 | `ninety-day-challenge` | 90 | Sequential Gen→Rev |
 | 10 | `nt-40days` | 40 | NT in 40 days challenge |
 | 11 | `nt-psalms-proverbs-90days` | 90 | NT, Psalms, & Proverbs in 90 days |
+| 12 | `chronological-6month` | 186 | Chronological in ~6 months (derived from 1-year) |
+| 13 | `psalms-proverbs-186days` | 186 | Daily Psalms & Proverbs companion (derived from YV-372) |
 
 **Curated YouVersion (bible.com)** — popular / classic schedules, same JSON shape as other plans:
 
@@ -211,6 +213,24 @@ python scripts/nt40.py 1-5         # Days 1–5
 python scripts/nt40.py 1 --compare # Enable translation comparison (CUV + CUVC)
 ```
 Plan files: `assets/bible/plans/nt-40days.json`, `assets/bible/plans/nt-psalms-proverbs-90days.json`
+
+**Chronological 6-Month (半年歷史讀經)** — Two paired 186-day plans generated together: a chronological reading plan and a daily Psalms & Proverbs companion. Derived from the 1-year chronological plan (2:1 merge) + YouVersion Psalms & Proverbs 372-day (2:1 merge). Psalm 119 gets its own day (Day 76) with bonus Proverbs 1 + 31.
+
+```bash
+# Regenerate both plan JSONs
+python scripts/generate_6mo_plan.py
+
+# Generate daily audio (1.5x + BGM, rotate voices)
+python scripts/chrono180.py 1              # Day 1: chrono + Ps+Prov MP3s
+python scripts/chrono180.py 1-7            # Days 1–7
+python scripts/chrono180.py 1 --mp4        # Also generate MP4 video
+```
+
+Output per day (2 files):
+- `半年歷史讀經第N天-{chapters}.mp3` → `audio/chronological-6month-rotate/`
+- `半年智慧讚美第N天-{psalms+proverbs}.mp3` → `audio/psalms-proverbs-186days/`
+
+Plan files: `assets/bible/plans/chronological-6month.json`, `assets/bible/plans/psalms-proverbs-186days.json`
 
 **Daily cron** – run at 00:05 Kiritimati (e.g. 10:05 UTC) to generate today's MP3s (preset 1 = 4 files):
 ```bash
