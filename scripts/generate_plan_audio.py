@@ -36,6 +36,7 @@ PLAN_FILENAME = {
     "psalms-30days": "赞美诗篇第{i}天",
     "nt-40days": "40天新約挑戰第{i:02d}天",
     "nt-psalms-proverbs-90days": "90天新約詩篇箴言挑戰第{i:02d}天",
+    "psalms-proverbs-186days": "半年智慧讚美第{i}天",
 }
 
 # Wisdom & Praise + YouVersion Psalms/Proverbs: short stems 智讚{N}-{dd} / 智讚對{N}-{dd}
