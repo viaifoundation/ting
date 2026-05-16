@@ -109,9 +109,9 @@ def create_mp4(mp3_path: str, mp4_path: str, bg_image: str, title: str) -> bool:
         return False
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="半年歷史讀經 Chronological 6-Month Generator")
-    parser.add_argument("days", type=str, help="Day number (1–183) or range (e.g. 1-5)")
-    parser.add_argument("--mp4", action="store_true", help="Generate MP4 video alongside MP3")
+    parser = argparse.ArgumentParser(description="半年歷史讀經 + 半年智慧讚美 (186-day paired plans)")
+    parser.add_argument("days", type=str, help="Day number (1–186) or range (e.g. 1-5)")
+    parser.add_argument("--mp4", action="store_true", help="Generate MP4 video alongside chrono MP3")
     args = parser.parse_args()
 
     try:
@@ -120,81 +120,114 @@ def main() -> int:
         print(f"❌ {e}")
         return 1
 
-    plan_path = REPO_ROOT / "assets" / "bible" / "plans" / f"{PLAN_ID}.json"
-    if not plan_path.exists():
-        print(f"❌ Plan not found: {plan_path}. Did you run generate_6mo_plan.py?")
+    # Load both plans
+    chrono_path = REPO_ROOT / "assets" / "bible" / "plans" / f"{PLAN_ID}.json"
+    psprov_path = REPO_ROOT / "assets" / "bible" / "plans" / "psalms-proverbs-186days.json"
+
+    if not chrono_path.exists():
+        print(f"❌ Plan not found: {chrono_path}. Run generate_6mo_plan.py first.")
+        return 1
+    if not psprov_path.exists():
+        print(f"❌ Plan not found: {psprov_path}. Run generate_6mo_plan.py first.")
         return 1
 
-    plan = load_plan(plan_path)
-    max_day = plan["days"]
-    entries_by_day = {e["day"]: e for e in plan["entries"]}
+    chrono_plan = load_plan(chrono_path)
+    psprov_plan = load_plan(psprov_path)
+    max_day = chrono_plan["days"]
+    chrono_by_day = {e["day"]: e for e in chrono_plan["entries"]}
+    psprov_by_day = {e["day"]: e for e in psprov_plan["entries"]}
 
     invalid = [d for d in requested_days if d < 1 or d > max_day]
     if invalid:
         print(f"❌ Day(s) out of range (plan has {max_day} days): {invalid}")
         return 1
 
-    days_to_generate = []
-    for day_num in requested_days:
-        entry = entries_by_day.get(day_num)
-        if not entry or not entry.get("chapters"):
-            print(f"⚠️  Day {day_num}: no chapters, skipping.")
-            continue
-        days_to_generate.append((day_num, entry["chapters"]))
-
-    if not days_to_generate:
-        print("❌ No valid days to generate.")
-        return 1
-
-    out_dir = REPO_ROOT / "audio" / "chronological-6month-rotate"
-    out_dir.mkdir(parents=True, exist_ok=True)
+    chrono_out = REPO_ROOT / "audio" / "chronological-6month-rotate"
+    psprov_out = REPO_ROOT / "audio" / "psalms-proverbs-186days"
+    chrono_out.mkdir(parents=True, exist_ok=True)
+    psprov_out.mkdir(parents=True, exist_ok=True)
     generate_script = REPO_ROOT / "scripts" / "generate_plan_audio.py"
 
     bg_image = None
     if args.mp4:
         bg_image = get_background_image()
         if not bg_image:
-            print("❌ Background image missing. Please place background.jpg or background.png in assets/background/")
+            print("❌ Background image missing. Place background.jpg or .png in assets/background/")
             return 1
 
-    for day_num, chapters in days_to_generate:
+    for day_num in requested_days:
+        chrono_entry = chrono_by_day.get(day_num)
+        psprov_entry = psprov_by_day.get(day_num)
+
+        # ── 1) Generate Chrono MP3 ────────────────────────────────────────
+        if not chrono_entry or not chrono_entry.get("chapters"):
+            print(f"⚠️  Day {day_num}: no chrono chapters, skipping.")
+            continue
+
+        chapters = chrono_entry["chapters"]
         ch_str = chapters_to_filename(chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW, between_groups="-")
-        
-        # 1) Generate MP3
+
         cmd = [
-            sys.executable,
-            str(generate_script),
+            sys.executable, str(generate_script),
             PLAN_ID,
-            "-o", str(out_dir),
+            "-o", str(chrono_out),
             "--start-day", str(day_num),
             "--end-day", str(day_num),
             "--use-chapter-filename",
             "--no-speed-label",
             "--speed", "1.5",
-            "--bgm",
-            "--bgm-splits", "1",
+            "--bgm", "--bgm-splits", "1",
             "--chapter-voice", "rotate",
         ]
-        
-        print(f"\n--- Generating MP3 for Day {day_num} ---")
+
+        print(f"\n{'─' * 50}")
+        print(f"Day {day_num} — Chrono: {chapters_to_english(chapters)}")
+        print(f"{'─' * 50}")
         subprocess.run(cmd, check=True)
-        print(f"✅ Generated MP3: {out_dir.name} Day {day_num}")
-        
-        # 2) Generate MP4 if requested
+        print(f"✅ 半年歷史讀經第{day_num}天-{ch_str}.mp3")
+
+        # MP4 for chrono if requested
         if args.mp4:
-            # Re-construct expected filename based on the logic in generate_plan_audio.py
-            expected_filename = f"{plan['name_zh_tw']}第{day_num}天-{ch_str}.mp3"
-            mp3_path = out_dir / expected_filename
-            
+            expected_filename = f"{chrono_plan['name_zh_tw']}第{day_num}天-{ch_str}.mp3"
+            mp3_path = chrono_out / expected_filename
             if mp3_path.exists():
-                mp4_path = mp3_path.with_suffix('.mp4')
-                title = f"{plan['name_zh_tw']} Day {day_num} - {chapters_to_english(chapters)}"
+                mp4_path = mp3_path.with_suffix(".mp4")
+                title = f"{chrono_plan['name_zh_tw']} Day {day_num} - {chapters_to_english(chapters)}"
                 create_mp4(str(mp3_path), str(mp4_path), bg_image, title)
             else:
-                print(f"❌ MP3 not found where expected: {mp3_path}")
+                print(f"❌ MP3 not found for MP4: {mp3_path}")
 
-    print(f"\nDone. Output: {out_dir}")
+        # ── 2) Generate Ps+Prov MP3 ──────────────────────────────────────
+        if not psprov_entry or not psprov_entry.get("chapters"):
+            print(f"⏭️  Day {day_num}: Ps+Prov skipped (Ps 119 day)")
+            continue
+
+        psprov_chapters = psprov_entry["chapters"]
+        pp_str = chapters_to_filename(psprov_chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW, between_groups="-")
+
+        cmd_pp = [
+            sys.executable, str(generate_script),
+            "psalms-proverbs-186days",
+            "-o", str(psprov_out),
+            "--start-day", str(day_num),
+            "--end-day", str(day_num),
+            "--use-chapter-filename",
+            "--no-speed-label",
+            "--speed", "1.5",
+            "--bgm", "--bgm-splits", "1",
+            "--chapter-voice", "rotate",
+        ]
+
+        print(f"\nDay {day_num} — Ps+Prov: {chapters_to_english(psprov_chapters)}")
+        subprocess.run(cmd_pp, check=True)
+        print(f"✅ 半年智慧讚美第{day_num}天-{pp_str}.mp3")
+
+    print(f"\nDone.")
+    print(f"  Chrono:  {chrono_out}")
+    print(f"  Ps+Prov: {psprov_out}")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
