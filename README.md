@@ -220,15 +220,15 @@ Plan files: `assets/bible/plans/nt-40days.json`, `assets/bible/plans/nt-psalms-p
 # Regenerate both plan JSONs
 python scripts/generate_6mo_plan.py
 
-# Generate daily audio (1.5x + BGM, rotate voices)
-python scripts/qt.py 1              # Day 1: chrono + Ps+Prov MP3s
+# Generate daily audio + video (1.5x + BGM, rotate voices, MP4 by default)
+python scripts/qt.py 1              # Day 1: 2 MP3s + 2 MP4s
 python scripts/qt.py 1-7            # Days 1–7
-python scripts/qt.py 1 --mp4        # Also generate MP4 video
+python scripts/qt.py 1 --no-mp4     # MP3 only, skip MP4 video
 ```
 
-Output per day (2 files):
-- `半年歷史讀經第N天-{chapters}.mp3` → `audio/chronological-6month-rotate/`
-- `半年智慧讚美第N天-{psalms+proverbs}.mp3` → `audio/psalms-proverbs-186days/`
+Output per day (4 files, or 2 with `--no-mp4`):
+- `半年歷史讀經第N天-{chapters}.mp3` + `.mp4` → `audio/chronological-6month-rotate/`
+- `半年智慧讚美第N天-{psalms+proverbs}.mp3` + `.mp4` → `audio/psalms-proverbs-186days/`
 
 Plan files: `assets/bible/plans/chronological-6month.json`, `assets/bible/plans/psalms-proverbs-186days.json`
 
