@@ -27,19 +27,30 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
-from plan_utils import chapters_to_filename, BOOK_FILENAME_ABBR_ZH_TW
+from plan_utils import chapters_to_filename, BOOK_FILENAME_ABBR_ZH_TW, BOOK_FILENAME_ABBR, BOOK_FILENAME_ABBR_ZH_CN
 
-# plan_id -> Chinese name pattern ({i} = day index; use :02d in format spec if desired)
-PLAN_FILENAME = {
-    "chronological-1year": "历史读经第{i}天",
-    "chronological-90days": "90天历史读经第{i}天",
-    "psalms-30days": "赞美诗篇第{i}天",
+# plan_id -> Traditional Chinese name pattern
+PLAN_FILENAME_ZH_TW = {
+    "chronological-1year": "歷史時序聆聽第{i}天",
+    "chronological-90days": "90天歷史時序聆聽第{i}天",
+    "psalms-30days": "讚美詩篇第{i}天",
     "nt-40days": "40天新約挑戰第{i:02d}天",
     "nt-psalms-proverbs-90days": "90天新約詩篇箴言挑戰第{i:02d}天",
-    "psalms-proverbs-186days": "半年智慧讚美第{i}天",
+    "psalms-proverbs-186days": "半年智慧讚美聆聽第{i}天",
 }
 
-# Wisdom & Praise + YouVersion Psalms/Proverbs: short stems 智讚{N}-{dd} / 智讚對{N}-{dd}
+# plan_id -> Simplified Chinese name pattern
+PLAN_FILENAME_ZH_CN = {
+    "chronological-1year": "历史时序聆听第{i}天",
+    "chronological-90days": "90天历史时序聆听第{i}天",
+    "psalms-30days": "赞美诗篇第{i}天",
+    "nt-40days": "40天新约挑战第{i:02d}天",
+    "nt-psalms-proverbs-90days": "90天新约诗篇箴言挑战第{i:02d}天",
+    "psalms-proverbs-186days": "半年智慧赞美聆听第{i}天",
+}
+
+
+# Wisdom & Praise + YouVersion Psalms/Proverbs: short stems 智讚{N}-{d} / 智讚對{N}-{d}
 WISDOM_PRAISE_STYLE_PLANS = frozenset(
     {
         "wisdom-praise-30days",
@@ -48,6 +59,8 @@ WISDOM_PRAISE_STYLE_PLANS = frozenset(
         "wisdom-praise-90days",
         "psalms-proverbs-youversion-31",
         "psalms-proverbs-youversion-372",
+        "psalms-proverbs-62days",
+        "psalms-proverbs-93days",
     }
 )
 # Chronological 1-Year: 年度歷史讀經第{d}天 / 年度歷史讀經對照第{d}天
@@ -58,20 +71,27 @@ _CHAPTER_VOICE_DUP = frozenset(
 )
 
 
-def wisdom_praise_filename_label(plan_days: int, day: int, chapter_voice: str) -> str:
-    """Descriptive stem: {N}天智慧讚美第{dd}天 or {N}天智慧讚美對照第{dd}天."""
-    dd = f"{day:02d}"
+def wisdom_praise_filename_label(plan_days: int, day: int, chapter_voice: str, lang: str = "zh-tw") -> str:
+    """Descriptive stem: {N}天智慧讚美聆聽第{day}天 or {N}天智慧讚美聆聽對照第{day}天."""
+    dd = str(day)
+    is_tw = (lang == "zh-tw")
+    praise = "智慧讚美聆聽" if is_tw else "智慧赞美聆听"
+    compare = "對照" if is_tw else "对照"
     if chapter_voice in _CHAPTER_VOICE_DUP:
-        return f"{plan_days}天智慧讚美對照第{dd}天"
-    return f"{plan_days}天智慧讚美第{dd}天"
+        return f"{plan_days}天{praise}{compare}第{dd}天"
+    return f"{plan_days}天{praise}第{dd}天"
 
 
-def chrono_filename_label(plan_id: str, day: int, chapter_voice: str) -> str:
-    """Descriptive stem: 年度歷史讀經第{d}天 or 半年歷史讀經第{d}天."""
+def chrono_filename_label(plan_id: str, day: int, chapter_voice: str, lang: str = "zh-tw") -> str:
+    """Descriptive stem: 年度歷史時序聆聽第{d}天 or 半年歷史時序聆聽第{d}天."""
     prefix = "半年" if "6month" in plan_id else "年度"
+    is_tw = (lang == "zh-tw")
+    chrono = "歷史時序聆聽" if is_tw else "历史时序聆听"
+    compare = "對照" if is_tw else "对照"
     if chapter_voice in _CHAPTER_VOICE_DUP:
-        return f"{prefix}歷史讀經對照第{day}天"
-    return f"{prefix}歷史讀經第{day}天"
+        return f"{prefix}{chrono}{compare}第{day}天"
+    return f"{prefix}{chrono}第{day}天"
+
 
 
 PLANS_DIR = REPO_ROOT / "assets" / "bible" / "plans"
@@ -106,6 +126,100 @@ def get_bgm_suffix(speed: float, part_index: int, total_parts: int) -> str:
     if total_parts == 3:
         return label + PART_CHARS_3[part_index]
     return f"{label}{part_index + 1}"
+
+
+def get_bgm_suffix_eng(speed: float, part_index: int, total_parts: int) -> str:
+    """Get English suffix for BGM filename: 1.5x, 1.5xa, 1.5xb."""
+    label = f"{speed}x"
+    if total_parts == 1:
+        return label
+    part_char = chr(ord('a') + part_index)
+    return f"{label}{part_char}"
+
+
+def construct_base_name(plan_id, plan, day, chapters, plan_days, chapter_voice, start_date, filename_lang, use_chapter_filename):
+    from datetime import timedelta
+    d = start_date + timedelta(days=day - 1)
+    _ch_join = "-"
+    day_padded = f"{day:03d}" if plan_days >= 100 else f"{day:02d}"
+
+    if filename_lang == "ascii":
+        eng_ch_str = chapters_to_filename(
+            chapters, abbr=BOOK_FILENAME_ABBR, between_groups="_"
+        )
+        return f"{plan_id}-day{day_padded}-{eng_ch_str}"
+
+    elif filename_lang == "en":
+        eng_ch_str = chapters_to_filename(
+            chapters, abbr=BOOK_FILENAME_ABBR, between_groups="-"
+        )
+        plan_name_clean = plan.get("name", plan_id).replace(" ", "-")
+        return f"{plan_name_clean}-Day-{day_padded}-{eng_ch_str}"
+
+    elif filename_lang == "zh-cn":
+        from plan_utils import BOOK_FILENAME_ABBR_ZH_CN
+        if plan_id in WISDOM_PRAISE_STYLE_PLANS:
+            label = wisdom_praise_filename_label(plan_days, day, chapter_voice, lang="zh-cn")
+            if use_chapter_filename:
+                ch_str = chapters_to_filename(
+                    chapters, abbr=BOOK_FILENAME_ABBR_ZH_CN, between_groups=_ch_join
+                )
+                return f"{label}-{ch_str}"
+            else:
+                prefix = d.strftime("%Y%m%d")
+                return f"{prefix}-{label}"
+        elif plan_id in CHRONO_STYLE_PLANS:
+            label = chrono_filename_label(plan_id, day, chapter_voice, lang="zh-cn")
+            if use_chapter_filename:
+                ch_str = chapters_to_filename(
+                    chapters, abbr=BOOK_FILENAME_ABBR_ZH_CN, between_groups=_ch_join
+                )
+                return f"{label}-{ch_str}"
+            else:
+                prefix = d.strftime("%Y%m%d")
+                return f"{prefix}-{label}"
+        elif use_chapter_filename:
+            ch_str = chapters_to_filename(
+                chapters, abbr=BOOK_FILENAME_ABBR_ZH_CN, between_groups=_ch_join
+            )
+            name_fmt = PLAN_FILENAME_ZH_CN.get(plan_id, "聆听第{i}天")
+            return f"{name_fmt.format(i=day)}-{ch_str}"
+        else:
+            prefix = d.strftime("%Y%m%d")
+            name_fmt = PLAN_FILENAME_ZH_CN.get(plan_id, "聆听第{i}天")
+            return f"{prefix}-{name_fmt.format(i=day)}"
+
+    else:  # zh-tw (default local)
+        if plan_id in WISDOM_PRAISE_STYLE_PLANS:
+            label = wisdom_praise_filename_label(plan_days, day, chapter_voice, lang="zh-tw")
+            if use_chapter_filename:
+                ch_str = chapters_to_filename(
+                    chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW, between_groups=_ch_join
+                )
+                return f"{label}-{ch_str}"
+            else:
+                prefix = d.strftime("%Y%m%d")
+                return f"{prefix}-{label}"
+        elif plan_id in CHRONO_STYLE_PLANS:
+            label = chrono_filename_label(plan_id, day, chapter_voice, lang="zh-tw")
+            if use_chapter_filename:
+                ch_str = chapters_to_filename(
+                    chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW, between_groups=_ch_join
+                )
+                return f"{label}-{ch_str}"
+            else:
+                prefix = d.strftime("%Y%m%d")
+                return f"{prefix}-{label}"
+        elif use_chapter_filename:
+            ch_str = chapters_to_filename(
+                chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW, between_groups=_ch_join
+            )
+            name_fmt = PLAN_FILENAME_ZH_TW.get(plan_id, "聆聽第{i}天")
+            return f"{name_fmt.format(i=day)}-{ch_str}"
+        else:
+            prefix = d.strftime("%Y%m%d")
+            name_fmt = PLAN_FILENAME_ZH_TW.get(plan_id, "聆聽第{i}天")
+            return f"{prefix}-{name_fmt.format(i=day)}"
 
 
 def main():
@@ -197,6 +311,20 @@ def main():
         default="",
         help="Append this suffix to the base filename (before .mp3), e.g. '_對照文理和合本'",
     )
+    parser.add_argument(
+        "--audio-lang",
+        type=str,
+        choices=["zh-tw", "zh-cn", "en"],
+        default="zh-tw",
+        help="Voice/audio content language (default: zh-tw)",
+    )
+    parser.add_argument(
+        "--filename-lang",
+        type=str,
+        choices=["ascii", "zh-tw", "zh-cn", "en"],
+        default="ascii",
+        help="Output filename language format (ascii, zh-tw, zh-cn, en; default: ascii)",
+    )
     args = parser.parse_args()
 
     plan_path = PLANS_DIR / f"{args.plan_id}.json"
@@ -211,7 +339,10 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     start_date = date.fromisoformat(args.start_date)
-    name_fmt = PLAN_FILENAME.get(args.plan_id, "读经第{i}天")
+    if args.filename_lang == "zh-cn":
+        name_fmt = PLAN_FILENAME_ZH_CN.get(args.plan_id, "聆听第{i}天")
+    else:
+        name_fmt = PLAN_FILENAME_ZH_TW.get(args.plan_id, "聆聽第{i}天")
     plan_days = plan["days"]
     start = args.start_day
     end = args.end_day or max(e["day"] for e in entries)
@@ -226,47 +357,39 @@ def main():
             continue
         d = start_date + timedelta(days=day - 1)
         _ch_join = "-"
-        if args.plan_id in WISDOM_PRAISE_STYLE_PLANS:
-            label = wisdom_praise_filename_label(plan_days, day, args.chapter_voice)
-            if args.use_chapter_filename:
-                ch_str = chapters_to_filename(
-                    chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW, between_groups=_ch_join
-                )
-                base_name = f"{label}-{ch_str}"
-            else:
-                prefix = d.strftime("%Y%m%d")  # YYYYMMDD
-                base_name = f"{prefix}-{label}"
-        elif args.plan_id in CHRONO_STYLE_PLANS:
-            label = chrono_filename_label(args.plan_id, day, args.chapter_voice)
-            if args.use_chapter_filename:
-                ch_str = chapters_to_filename(
-                    chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW, between_groups=_ch_join
-                )
-                base_name = f"{label}-{ch_str}"
-            else:
-                prefix = d.strftime("%Y%m%d")  # YYYYMMDD
-                base_name = f"{prefix}-{label}"
-        elif args.use_chapter_filename:
-            ch_str = chapters_to_filename(
-                chapters, abbr=BOOK_FILENAME_ABBR_ZH_TW, between_groups=_ch_join
-            )
-            base_name = f"{name_fmt.format(i=day)}-{ch_str}"
-        else:
-            prefix = d.strftime("%Y%m%d")  # YYYYMMDD
-            base_name = f"{prefix}-{name_fmt.format(i=day)}"
-        if args.filename_suffix:
-            base_name += args.filename_suffix
 
+        # Construct the language-aware base filename
+        base_name = construct_base_name(
+            args.plan_id, plan, day, chapters, plan_days,
+            args.chapter_voice, start_date, args.filename_lang, args.use_chapter_filename
+        )
+
+        # 3. Audio generation and file mapping
         if args.bgm:
             splits = args.bgm_splits
             groups = split_chapters(chapters, splits)
             for i, group in enumerate(groups):
                 spec = ",".join(group)
-                suffix = get_bgm_suffix(args.speed, i, splits)
-                if args.no_speed_label:
-                    out_file = out_dir / f"{base_name}.mp3"
+                
+                # Determine suffix format based on filename language
+                if args.filename_lang in ("ascii", "en"):
+                    suffix = get_bgm_suffix_eng(args.speed, i, splits)
                 else:
-                    out_file = out_dir / f"{base_name}_{suffix}.mp3"
+                    suffix = get_bgm_suffix(args.speed, i, splits)
+
+                if args.no_speed_label:
+                    filename = base_name
+                else:
+                    filename = f"{base_name}_{suffix}"
+
+                # Append custom suffix
+                if args.filename_suffix and "對照" in args.filename_suffix and args.filename_lang == "zh-cn":
+                    filename += "-对照"
+                elif args.filename_suffix:
+                    filename += args.filename_suffix
+
+                out_file = out_dir / f"{filename}.mp3"
+
                 cmd = [
                     sys.executable, str(CONCAT_SCRIPT),
                     "-c", spec,
@@ -288,12 +411,18 @@ def main():
                     cmd.extend(["--voice-rotation-start", str(day)])
                 if args.duplicate_random_seed is not None:
                     cmd.extend(["--duplicate-random-seed", str(args.duplicate_random_seed)])
+
+                # Run execution
                 subprocess.run(cmd, check=True)
-                print(f"Day {day}: {out_file.name}")
+                print(f"Day {day}: Generated {out_file.name}")
         else:
-            # Plain: 1x only, no suffix
+            # Plain: 1x only, no speed suffix
             spec = ",".join(chapters)
-            out_file = out_dir / f"{base_name}.mp3"
+            filename = base_name
+            if args.filename_suffix:
+                filename += args.filename_suffix
+            out_file = out_dir / f"{filename}.mp3"
+
             cmd = [
                 sys.executable, str(CONCAT_SCRIPT),
                 "-c", spec,
@@ -314,8 +443,10 @@ def main():
                 cmd.extend(["--voice-rotation-start", str(day)])
             if args.duplicate_random_seed is not None:
                 cmd.extend(["--duplicate-random-seed", str(args.duplicate_random_seed)])
+
+            # Run execution
             subprocess.run(cmd, check=True)
-            print(f"Day {day}: {out_file.name}")
+            print(f"Day {day}: Generated {out_file.name}")
 
     print(f"Done. Output: {out_dir}")
     return 0

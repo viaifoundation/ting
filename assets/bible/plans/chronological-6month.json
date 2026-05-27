@@ -1,8 +1,8 @@
 {
   "id": "chronological-6month",
   "name": "Chronological (6 Months)",
-  "name_zh": "半年历史读经",
-  "name_zh_tw": "半年歷史讀經",
+  "name_zh": "半年历史时序聆听",
+  "name_zh_tw": "半年歷史時序聆聽",
   "days": 186,
   "ps119_day": 76,
   "source": "Derived from Chronological 1-Year plan (2:1 merge, Ps 119 split, 2 heavy days un-merged)",

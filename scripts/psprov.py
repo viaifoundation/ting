@@ -64,6 +64,14 @@ YV_PRESETS: dict[str, tuple[str, str] | list[tuple[str, str]]] = {
         ("psalms-proverbs-youversion-372", "male_female"),
         ("psalms-proverbs-youversion-372", "rotate"),
     ],
+    "wisdom-rotate-all": [
+        ("psalms-proverbs-youversion-31", "rotate"),
+        ("psalms-proverbs-62days", "rotate"),
+        ("wisdom-praise-90days", "rotate"),
+        ("psalms-proverbs-93days", "rotate"),
+        ("psalms-proverbs-186days", "rotate"),
+        ("psalms-proverbs-youversion-372", "rotate"),
+    ],
 }
 
 YV_PRESET_BLURBS: dict[str, str] = {
@@ -72,6 +80,7 @@ YV_PRESET_BLURBS: dict[str, str] = {
     "yv372-rotate": "YouVersion 372-day; alternate narrators (single pass)",
     "yv372-mf": "YouVersion 372-day; each chapter male→female (two passes)",
     "yv-all": "Bundle: generate both 31 and 372 days, in both male-then-female and rotate modes (4 files per day)",
+    "wisdom-rotate-all": "Generate all 6 Wisdom/Psalms plan lengths in rotate voice mode (single pass)",
 }
 
 # CLI --voice-mode → generate_plan_audio --chapter-voice
@@ -104,10 +113,14 @@ def format_presets_help() -> str:
         "",
     ]
     for name in sorted(YV_PRESETS.keys()):
-        plan_id, vm = YV_PRESETS[name]
+        val = YV_PRESETS[name]
         blurb = YV_PRESET_BLURBS.get(name, "")
         lines.append(f"  {name}")
-        lines.append(f"      plan: {plan_id}  |  voice-mode: {vm}")
+        if isinstance(val, list):
+            lines.append(f"      bundle: {len(val)} sub-plans")
+        else:
+            plan_id, vm = val
+            lines.append(f"      plan: {plan_id}  |  voice-mode: {vm}")
         if blurb:
             lines.append(f"      {blurb}")
         lines.append("")

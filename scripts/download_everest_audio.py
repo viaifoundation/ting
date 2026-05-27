@@ -83,7 +83,10 @@ def main():
         if not zip_path.exists():
             print(f"Book {book} ({code}): downloading... ", end="", flush=True)
             try:
-                r = requests.get(f"{BASE_URL}/{zip_name}", timeout=120, stream=True)
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                }
+                r = requests.get(f"{BASE_URL}/{zip_name}", timeout=120, stream=True, headers=headers)
                 r.raise_for_status()
                 with open(zip_path, "wb") as f:
                     for chunk in r.iter_content(chunk_size=8192):

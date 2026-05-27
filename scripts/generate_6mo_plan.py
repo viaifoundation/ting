@@ -2,12 +2,12 @@
 """
 Generate two 186-day reading plans:
 
-  1. chronological-6month.json  — Chrono reading (半年歷史讀經)
+  1. chronological-6month.json  — Chrono reading (半年歷史時序聆聽)
      - 365-day plan merged 2:1 → 183 days
      - Un-merge 2 heaviest days → 185 days
      - Split Ps 119 into own day (Ps 119 + Prov 1 + Prov 31) → 186 days
 
-  2. psalms-proverbs-186days.json — Daily Psalms & Proverbs (智慧讚美)
+  2. psalms-proverbs-186days.json — Daily Psalms & Proverbs (智慧讚美聆聽)
      - YV-372 merged 2:1 → 186 days (2 Psalms + 2 Proverbs per day)
      - The Ps 119 day is empty (chrono plan already covers it)
 
@@ -146,8 +146,8 @@ def generate_plans():
     chrono_plan = {
         "id": "chronological-6month",
         "name": "Chronological (6 Months)",
-        "name_zh": "半年历史读经",
-        "name_zh_tw": "半年歷史讀經",
+        "name_zh": "半年历史时序聆听",
+        "name_zh_tw": "半年歷史時序聆聽",
         "days": 186,
         "ps119_day": ps119_day_num,
         "source": "Derived from Chronological 1-Year plan (2:1 merge, Ps 119 split, 2 heavy days un-merged)",
@@ -184,8 +184,8 @@ def generate_plans():
     psprov_plan = {
         "id": "psalms-proverbs-186days",
         "name": "Psalms & Proverbs (186 Days)",
-        "name_zh": "半年智慧赞美",
-        "name_zh_tw": "半年智慧讚美",
+        "name_zh": "半年智慧赞美聆听",
+        "name_zh_tw": "半年智慧讚美聆聽",
         "days": 186,
         "skip_day": ps119_day_num,
         "source": "Derived from YouVersion Psalms & Proverbs 372-day plan (2:1 merge)",
@@ -201,8 +201,8 @@ def generate_plans():
     # ══════════════════════════════════════════════════════════════════════
     print(f"\n{'=' * 60}")
     print(f"Generated 2 plans:")
-    print(f"  1. {chrono_out.name} — {len(chrono_entries)} days (半年歷史讀經)")
-    print(f"  2. {psprov_out.name} — {len(psprov_entries)} days (智慧讚美)")
+    print(f"  1. {chrono_out.name} — {len(chrono_entries)} days (半年歷史時序聆聽)")
+    print(f"  2. {psprov_out.name} — {len(psprov_entries)} days (智慧讚美聆聽)")
     print(f"  Ps 119 day: Day {ps119_day_num} (Ps 119 + Prov 1 + Prov 31)")
 
     # Duration stats
