@@ -18,6 +18,7 @@ import os
 import re
 import sqlite3
 import filename_parser
+from text_cleaner import remove_special_bible_tags
 
 # Optional: opencc for simplified → traditional Chinese conversion
 try:
@@ -135,20 +136,11 @@ def parse_verse_reference(ref_text: str):
     return (book_num, chapter, verse_start, verse_end)
 
 
-# Regex to strip tags from Bible text (matching bibleengine PHP logic):
-#   <WH\w+> = Hebrew Strong's numbers, <WG\w+> = Greek Strong's numbers
-#   <FR>, <Fr> = formatting markers in CUV/KJV/NASB
-_STRONGS_RE = re.compile(r'<W[HG]\w+>', re.IGNORECASE)
-_FORMAT_RE = re.compile(r'<FR>|<Fr>', re.IGNORECASE)
-
 def _clean_verse_text(text: str) -> str:
-    """Clean verse text: strip Strong's/formatting tags and convert simplified → traditional."""
+    """Clean verse text: strip Strong's/formatting tags, English book tag artifacts, and convert simplified → traditional."""
     if not text:
         return text
-    # Strip formatting tags (FR/Fr)
-    text = _FORMAT_RE.sub('', text)
-    # Strip Strong's number tags
-    text = _STRONGS_RE.sub('', text)
+    text = remove_special_bible_tags(text)
     # Convert simplified → traditional Chinese
     text = _s2t(text)
     return text.strip()

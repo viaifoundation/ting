@@ -98,6 +98,42 @@ def handle_classical_punctuation(text):
     
     return text
 
+_STRONGS_RE = re.compile(r'<W[HG]\w*>', re.IGNORECASE)
+_FORMAT_RE = re.compile(r'<FR\w*>|<Fr\w*>', re.IGNORECASE)
+
+_ENGLISH_BOOK_NAMES = [
+    "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy",
+    "Joshua", "Judges", "Ruth", "1Samuel", "2Samuel", "1Kings", "2Kings",
+    "1Chronicles", "1Chron", "2Chronicles", "2Chron", "IChronicles", "IIChronicles",
+    "Ezra", "Nehemiah", "Esther", "Job", "Psalm", "Psalms", "Proverbs",
+    "Ecclesiastes", "SongOfSolomon", "SongOfSongs", "Isaiah", "Jeremiah",
+    "Lamentations", "Ezekiel", "Daniel", "Hosea", "Joel", "Amos", "Obadiah",
+    "Jonah", "Micah", "Nahum", "Habakkuk", "Zephaniah", "Haggai", "Zechariah",
+    "Malachi", "Matthew", "Mark", "Luke", "John", "Acts", "Romans",
+    "1Corinthians", "1Cor", "2Corinthians", "2Cor", "Galatians", "Ephesians",
+    "Philippians", "Colossians", "1Thessalonians", "1Thess", "2Thessalonians",
+    "2Thess", "1Timothy", "1Tim", "2Timothy", "2Tim", "Titus", "Philemon",
+    "Hebrews", "James", "1Peter", "1Pet", "2Peter", "2Pet", "1John", "2John",
+    "3John", "Jude", "Revelation", "IJohn", "IIJohn", "IIIJohn"
+]
+
+_BOOK_TAGS_RE = re.compile(
+    rf"(?:{'|'.join(sorted(_ENGLISH_BOOK_NAMES, key=len, reverse=True))})\s*(?:\d+[:：]\d+)?\s*[:：]?",
+    re.IGNORECASE
+)
+
+def remove_special_bible_tags(text):
+    """
+    Removes Strong's tags (<WH>, <WH1234>), formatting tags (<FR>, <Fr>),
+    and English book tag/reference artifacts (Psalms, Isaiah, etc.).
+    """
+    if not text:
+        return text
+    text = _FORMAT_RE.sub('', text)
+    text = _STRONGS_RE.sub('', text)
+    text = _BOOK_TAGS_RE.sub('', text)
+    return text
+
 
 def clean_text_basic(text):
     """
@@ -107,6 +143,7 @@ def clean_text_basic(text):
     """
     text = remove_control_characters(text)
     text = remove_bracketed_emojis(text)
+    text = remove_special_bible_tags(text)
     text = remove_space_before_god(text)
     return text.strip()
 

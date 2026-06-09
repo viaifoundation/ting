@@ -32,7 +32,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 import sys
 sys.path.insert(0, str(REPO_ROOT))
-from text_cleaner import clean_text_for_tts
+from text_cleaner import clean_text_for_tts, remove_special_bible_tags
 
 DB_PATH = REPO_ROOT.parent / "devotion_tts" / "assets" / "bible" / "db" / "bible.sqlite"
 # Default output dir (cuvc, kept for backward compatibility)
@@ -127,12 +127,12 @@ Examples:
                 print(f"No verses found for Book {args.book} Chapter {ch}.")
                 continue
 
-            # Filter empty verses and strip Strong's/markup tags (e.g. <WH1234>)
+            # Filter empty verses and strip Strong's/markup tags and book name artifacts
             verses = []
             for r in rows:
                 t = r[col]
                 if t:
-                    t = re.sub(r'<[A-Za-z0-9]+>', '', t).strip()
+                    t = remove_special_bible_tags(t).strip()
                     if t:
                         verses.append(t)
 
