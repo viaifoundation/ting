@@ -254,10 +254,10 @@ def main():
     parser.add_argument(
         "--trans",
         type=str,
-        default="cuvc",
+        default="cuvs",
         help=(
             "Comma-separated comparison translations (used with --compare). "
-            "Supported: cuvc/cuvs, cuvt, ncvs, lcvs, clbs. Example: 'cuvt,ncvs' (default: cuvc)"
+            "Supported: cuvs, cuvc, cuvt, ncvs, lcvs, clbs. Example: 'cuvt,ncvs' (default: cuvs)"
         ),
     )
     parser.add_argument("--bgm", action="store_true", help="Add background music")

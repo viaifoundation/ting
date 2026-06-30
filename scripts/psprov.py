@@ -250,7 +250,7 @@ def main() -> int:
     parser.add_argument(
         "--trans",
         type=str,
-        default="cuvc",
+        default="cuvs",
         help="Comma-separated translations for --compare",
     )
     args = parser.parse_args()

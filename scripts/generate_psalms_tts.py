@@ -38,10 +38,10 @@ DB_PATH = REPO_ROOT.parent / "devotion_tts" / "assets" / "bible" / "db" / "bible
 # Default output dir (cuvc, kept for backward compatibility)
 DEFAULT_OUT_DIR = REPO_ROOT / "assets" / "bible" / "audio" / "chapters_tts"
 
-# Supported translation name → DB column
+# Supported translation name → DB column / virtual code
 TRANSLATION_COLUMNS: dict[str, str] = {
-    "cuvc": "cuvc",   # CUV Simplified (default)
-    "cuvs": "cuvc",   # alias for cuvc
+    "cuvs": "cuvs",   # CUV Simplified (default)
+    "cuvc": "cuvc",   # Classical CUV
     "cuvt": "cuvt",   # CUV Traditional (contains Strong's tags, stripped)
     "ncvs": "ncvs",   # New Chinese Version Simplified
     "lcvs": "lcvs",   # Living Chinese Version Simplified
@@ -61,7 +61,7 @@ RATE = "+0%"
 
 def get_out_dir(translation: str) -> Path:
     """Return the output directory for a given translation name."""
-    if translation in ("cuvc", "cuvs"):
+    if translation == "cuvs":
         return DEFAULT_OUT_DIR  # backward-compatible default
     return REPO_ROOT / "assets" / "bible" / "audio" / f"chapters_tts_{translation}"
 
@@ -74,7 +74,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Generate TTS audio for Bible chapters (edge-tts + local bible.sqlite)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""Supported translations: cuvc (default/alias cuvs), cuvt, ncvs, lcvs, clbs
+        epilog="""Supported translations: cuvs (default), cuvc, cuvt, ncvs, lcvs, clbs
 
 Examples:
   python scripts/generate_psalms_tts.py
@@ -88,8 +88,8 @@ Examples:
     parser.add_argument(
         "--translation", "-t",
         type=str,
-        default="cuvc",
-        help="Translation to use: cuvc (default), cuvt, ncvs, lcvs, clbs (see --help for details)",
+        default="cuvs",
+        help="Translation to use: cuvs (default), cuvc, cuvt, ncvs, lcvs, clbs (see --help for details)",
     )
     args = parser.parse_args()
 

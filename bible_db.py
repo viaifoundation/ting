@@ -36,7 +36,8 @@ DEFAULT_DB = os.path.join(SCRIPT_DIR, "assets", "bible", "db", "bible.sqlite")
 
 # Translation codes → display labels (Simplified Chinese)
 TRANSLATION_LABELS = {
-    "cuvt": "和合本",
+    "cuvs": "和合本",
+    "cuvt": "和合本繁体",
     "ncvs": "新译本",
     "lcvs": "吕振中译本",
     "clbs": "当代译本",
@@ -163,38 +164,41 @@ class BibleDB:
         if self.conn:
             self.conn.close()
 
-    def get_verse(self, book: int, chapter: int, verse: int, translation: str = "cuvt") -> str:
+    def get_verse(self, book: int, chapter: int, verse: int, translation: str = "cuvs") -> str:
         """Get a single verse text."""
         if translation not in TRANSLATION_LABELS:
             raise ValueError(f"Unknown translation: {translation}")
+        db_col = "cuvt" if translation == "cuvs" else translation
         row = self.conn.execute(
-            f"SELECT {translation} FROM verses WHERE book=? AND chapter=? AND verse=?",
+            f"SELECT {db_col} FROM verses WHERE book=? AND chapter=? AND verse=?",
             (book, chapter, verse)
         ).fetchone()
         return _clean_verse_text(row[0]) if row else None
 
     def get_verses(self, book: int, chapter: int, verse_start: int, verse_end: int,
-                   translation: str = "cuvt") -> list:
+                   translation: str = "cuvs") -> list:
         """Get a range of verses. Returns list of (verse_num, text)."""
         if translation not in TRANSLATION_LABELS:
             raise ValueError(f"Unknown translation: {translation}")
+        db_col = "cuvt" if translation == "cuvs" else translation
         rows = self.conn.execute(
-            f"SELECT verse, {translation} FROM verses WHERE book=? AND chapter=? AND verse>=? AND verse<=? ORDER BY verse",
+            f"SELECT verse, {db_col} FROM verses WHERE book=? AND chapter=? AND verse>=? AND verse<=? ORDER BY verse",
             (book, chapter, verse_start, verse_end)
         ).fetchall()
         return [(r[0], _clean_verse_text(r[1])) for r in rows if r[1]]
 
-    def get_chapter(self, book: int, chapter: int, translation: str = "cuvt") -> list:
+    def get_chapter(self, book: int, chapter: int, translation: str = "cuvs") -> list:
         """Get all verses of a chapter. Returns list of (verse_num, text)."""
         if translation not in TRANSLATION_LABELS:
             raise ValueError(f"Unknown translation: {translation}")
+        db_col = "cuvt" if translation == "cuvs" else translation
         rows = self.conn.execute(
-            f"SELECT verse, {translation} FROM verses WHERE book=? AND chapter=? ORDER BY verse",
+            f"SELECT verse, {db_col} FROM verses WHERE book=? AND chapter=? ORDER BY verse",
             (book, chapter)
         ).fetchall()
         return [(r[0], _clean_verse_text(r[1])) for r in rows if r[1]]
 
-    def get_chapter_text(self, book: int, chapter: int, translation: str = "cuvt") -> str:
+    def get_chapter_text(self, book: int, chapter: int, translation: str = "cuvs") -> str:
         """Get full chapter as a single text block with verse numbers removed."""
         verses = self.get_chapter(book, chapter, translation)
         if not verses:
@@ -202,7 +206,7 @@ class BibleDB:
         return "\n".join(text for _, text in verses)
 
     def get_verse_text(self, book: int, chapter: int, verse_start: int, verse_end: int,
-                       translation: str = "cuvt") -> str:
+                       translation: str = "cuvs") -> str:
         """Get verse range as a single text block."""
         verses = self.get_verses(book, chapter, verse_start, verse_end, translation)
         if not verses:
@@ -218,7 +222,7 @@ class BibleDB:
         """
         result = []
         # CUV bookends: CUV, CNV, LCV, CCB, CUVC, CUV
-        for code in ["cuvt", "ncvs", "lcvs", "clbs", "cuvc", "cuvt"]:
+        for code in ["cuvs", "ncvs", "lcvs", "clbs", "cuvc", "cuvs"]:
             text = self.get_verse_text(book, chapter, verse_start, verse_end, code)
             if text:
                 label = TRANSLATION_LABELS[code]
@@ -231,16 +235,16 @@ class BibleDB:
         Given a verse reference, produce the full expanded block:
         - Full chapter text in 和合本 (for Everest audio alignment)
         - The specific verse in 4 translations
-
+ 
         Returns dict with:
           chapter_text: str (full chapter in 和合本)
           chapter_ref: str (e.g. "詩篇 86:1-17 和合本")
           translations: [(code, label, text, ref_str), ...]
         """
         book_name = book_number_to_chinese(book)
-
+ 
         # Determine chapter verse range for the full chapter reference
-        chapter_verses = self.get_chapter(book, chapter, "cuvt")
+        chapter_verses = self.get_chapter(book, chapter, "cuvs")
         if chapter_verses:
             ch_v_start = chapter_verses[0][0]
             ch_v_end = chapter_verses[-1][0]
@@ -249,10 +253,10 @@ class BibleDB:
         else:
             chapter_text = ""
             chapter_ref = f"{book_name} {chapter} 和合本"
-
+ 
         # Get verse in all translations (CUV bookends)
         translations = []
-        for code in ["cuvt", "ncvs", "lcvs", "clbs", "cuvc", "cuvt"]:
+        for code in ["cuvs", "ncvs", "lcvs", "clbs", "cuvc", "cuvs"]:
             text = self.get_verse_text(book, chapter, verse_start, verse_end, code)
             if text:
                 label = TRANSLATION_LABELS[code]

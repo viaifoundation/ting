@@ -221,7 +221,7 @@ Examples:
     parser.add_argument(
         "--trans",
         type=str,
-        default="cuvc",
+        default="cuvs",
         help="Comma-separated translations for --compare",
     )
     parser.add_argument(

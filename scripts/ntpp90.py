@@ -111,10 +111,10 @@ Examples:
     parser.add_argument(
         "--trans",
         type=str,
-        default="cuvc",
+        default="cuvs",
         help=(
             "Comma-separated translations to compare after each chapter "
-            "(used with --compare). Supported: cuvc/cuvs (CUV Simplified, default), "
+            "(used with --compare). Supported: cuvs (CUV Simplified, default), "
             "cuvt (CUV Traditional), ncvs (New Chinese Version), lcvs (Living Chinese), "
             "clbs (Chinese Living Bible). Example: 'cuvt,ncvs,clbs'"
         ),

@@ -38,8 +38,8 @@ NARRATION_BOOST_EVEREST_DB = 8.5  # female (Everest)
 
 # Translation name → DB column (must match generate_psalms_tts.TRANSLATION_COLUMNS)
 TRANSLATION_COLUMNS: dict[str, str] = {
-    "cuvc": "cuvc",   # CUV Simplified (default primary)
-    "cuvs": "cuvc",   # alias for cuvc
+    "cuvs": "cuvs",   # CUV Simplified (default primary)
+    "cuvc": "cuvc",   # Classical CUV
     "cuvt": "cuvt",   # CUV Traditional
     "ncvs": "ncvs",   # New Chinese Version Simplified
     "lcvs": "lcvs",   # Living Chinese Version
@@ -161,18 +161,18 @@ Examples:
         default=False,
         help=(
             "After each chapter, append TTS audio for comparison translations. "
-            "Use --trans to specify which ones (default: cuvc). "
+            "Use --trans to specify which ones (default: cuvs). "
             "The primary CUV audio plays first (Everest or TTS), then each comparison translation."
         ),
     )
     parser.add_argument(
         "--trans",
         type=str,
-        default="cuvc",
+        default="cuvs",
         help=(
             "Comma-separated translation names for comparison (used with "
-            "--compare). Supported: cuvc/cuvs, cuvt, ncvs, lcvs, clbs. "
-            "Example: 'cuvt,ncvs,clbs' (default: cuvc)"
+            "--compare). Supported: cuvs, cuvc, cuvt, ncvs, lcvs, clbs. "
+            "Example: 'cuvt,ncvs,clbs' (default: cuvs)"
         ),
     )
     parser.add_argument("--gap-ms", type=int, default=500, help="Silence between chapters/segments (ms)")
@@ -210,7 +210,7 @@ Examples:
     if args.compare:
         raw_names = [n.strip() for n in args.trans.split(",") if n.strip()]
         if not raw_names:
-            raw_names = ["cuvc"]
+            raw_names = ["cuvs"]
         for name in raw_names:
             if name not in TRANSLATION_COLUMNS:
                 print(f"⚠️  Unknown or unavailable translation '{name}'. "
