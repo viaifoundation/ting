@@ -129,8 +129,9 @@ def remove_special_bible_tags(text):
     """
     if not text:
         return text
-    text = _FORMAT_RE.sub('', text)
-    text = _STRONGS_RE.sub('', text)
+    # Strip any angle bracket tags like <WH>, <WG>, <FR>, etc., and any stray '<' or '>'
+    text = re.sub(r'<[^>]*>', '', text)
+    text = text.replace('<', '').replace('>', '')
     text = _BOOK_TAGS_RE.sub('', text)
     return text
 
