@@ -48,11 +48,20 @@ def mix_bgm(
         print(f"⚠️ No music files in {bgm_dir}. Skipping BGM.")
         return _apply_speech_volume(speech_audio, speech_volume_db)
 
-    if specific_filename and os.path.exists(os.path.join(bgm_dir, specific_filename)):
-        files = [specific_filename]
+    bgm_path = None
+    if specific_filename:
+        if os.path.exists(specific_filename):
+            bgm_path = specific_filename
+        elif os.path.exists(os.path.join(bgm_dir, specific_filename)):
+            bgm_path = os.path.join(bgm_dir, specific_filename)
+        elif os.path.exists(os.path.join(bgm_dir, os.path.basename(specific_filename))):
+            bgm_path = os.path.join(bgm_dir, os.path.basename(specific_filename))
+        else:
+            print(f"⚠️ BGM file {specific_filename} not found. Using rotated tracks.")
+
+    if bgm_path:
+        files = [os.path.basename(bgm_path)]
     else:
-        if specific_filename:
-            print(f"⚠️ BGM file {specific_filename} not found in {bgm_dir}. Using rotated tracks.")
         random.shuffle(files)  # random first track and sequence per output
 
     speech = _apply_speech_volume(speech_audio, speech_volume_db)
@@ -64,7 +73,7 @@ def mix_bgm(
     while len(bgm) < total_len:
         fname = files[idx % len(files)]
         idx += 1
-        path = os.path.join(bgm_dir, fname)
+        path = os.path.join(bgm_dir, fname) if not bgm_path else bgm_path
         try:
             seg = AudioSegment.from_file(path)
         except Exception as e:
@@ -73,11 +82,22 @@ def mix_bgm(
         seg = _normalize_bgm(seg)
         bgm += seg
     bgm = bgm[:total_len]
-    bgm = bgm + volume_db
+
+    # Adjust volume relative to speech audio (e.g. volume_db = -10 dB below speech)
+    rel_vol = volume_db
+    if rel_vol <= -18:
+        rel_vol = -10
+
+    if len(speech) > 0 and speech.dBFS > -60:
+        target_bgm_dBFS = speech.dBFS + rel_vol
+        gain_needed = target_bgm_dBFS - bgm.dBFS
+        bgm = bgm.apply_gain(gain_needed)
+    else:
+        bgm = bgm + rel_vol
 
     n_tracks = idx
     extra = f" (+{n_tracks - 1} more)" if n_tracks > 1 else ""
-    print(f"🎵 Adding background music: {files[0]}{extra} (BGM: {volume_db}dB, speech: {speech_volume_db}dB)")
+    print(f"🎵 Adding background music: {files[0]}{extra} (BGM rel: {rel_vol}dB, speech: {speech_volume_db}dB)")
 
     # Fade in/out BGM
     bgm = bgm.fade_in(2000).fade_out(tail_delay_ms)
