@@ -24,3 +24,7 @@ build/
 *.log
 .DS_Store
 Thumbs.db
+
+# Wrangler & DB cache
+.wrangler/
+/assets/bible/db/
