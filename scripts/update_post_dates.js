@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const WP_URL = "https://ting.weiai.ai/wp-json/wp/v2";
+const WP_URL = "https://ting.vi.fyi/wp-json/wp/v2";
 const AUTH_HEADER = "Basic " + Buffer.from("michaelhuo:oWCV Kh7h 77oL HILK Nsh8 CR07").toString("base64");
 
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -53,8 +53,8 @@ async function main() {
     const context = await browser.newContext();
     const page = await context.newPage();
 
-    console.log("Navigating to https://ting.weiai.ai/ to solve WAF challenge...");
-    await page.goto("https://ting.weiai.ai/", { waitUntil: "networkidle" });
+    console.log("Navigating to https://ting.vi.fyi/ to solve WAF challenge...");
+    await page.goto("https://ting.vi.fyi/", { waitUntil: "networkidle" });
     await page.waitForTimeout(3000);
 
     await page.setExtraHTTPHeaders({ 'Authorization': AUTH_HEADER });
@@ -62,7 +62,7 @@ async function main() {
     // Fetch all posts
     console.log("Fetching existing posts from WordPress...");
     const posts = await page.evaluate(async () => {
-        const res = await fetch("https://ting.weiai.ai/wp-json/wp/v2/posts?per_page=100");
+        const res = await fetch("https://ting.vi.fyi/wp-json/wp/v2/posts?per_page=100");
         return await res.json();
     });
 
@@ -82,7 +82,7 @@ async function main() {
 
             if (currentDate !== targetDate) {
                 const updateRes = await page.evaluate(async ({ id, targetDate }) => {
-                    const res = await fetch(`https://ting.weiai.ai/wp-json/wp/v2/posts/${id}`, {
+                    const res = await fetch(`https://ting.vi.fyi/wp-json/wp/v2/posts/${id}`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ date: targetDate })

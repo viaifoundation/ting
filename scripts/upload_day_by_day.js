@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const WP_URL = "https://ting.weiai.ai/wp-json/wp/v2";
+const WP_URL = "https://ting.vi.fyi/wp-json/wp/v2";
 const AUTH_HEADER = "Basic " + Buffer.from("michaelhuo:oWCV Kh7h 77oL HILK Nsh8 CR07").toString("base64");
 
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -87,9 +87,10 @@ function formatDateISO(dateObj) {
 async function main() {
     console.log("=== Starting Day-by-Day Audio WordPress Uploader ===");
 
-    // Parse --days N or default to 7 days
+    // Parse --all or --days N
+    const isAll = process.argv.includes('--all');
     const daysArgIdx = process.argv.indexOf('--days');
-    const daysCount = (daysArgIdx !== -1 && process.argv[daysArgIdx + 1]) ? parseInt(process.argv[daysArgIdx + 1], 10) : 7;
+    const daysCount = (daysArgIdx !== -1 && process.argv[daysArgIdx + 1]) ? parseInt(process.argv[daysArgIdx + 1], 10) : 365;
 
     // Scan MP3 files
     const allAudioFiles = [];
@@ -113,7 +114,7 @@ async function main() {
 
     for (const filePath of allAudioFiles) {
         const mtime = fs.statSync(filePath).mtime;
-        if (mtime.getTime() >= cutoffMs) {
+        if (isAll || mtime.getTime() >= cutoffMs) {
             const dateStr = mtime.toISOString().split('T')[0];
             if (!filesByDate[dateStr]) {
                 filesByDate[dateStr] = [];
@@ -145,8 +146,8 @@ async function main() {
     const context = await browser.newContext();
     const page = await context.newPage();
 
-    console.log("Navigating to https://ting.weiai.ai/ to solve WAF challenge...");
-    await page.goto("https://ting.weiai.ai/", { waitUntil: "networkidle" });
+    console.log("Navigating to https://ting.vi.fyi/ to solve WAF challenge...");
+    await page.goto("https://ting.vi.fyi/", { waitUntil: "networkidle" });
     await page.waitForTimeout(3000);
 
     await page.setExtraHTTPHeaders({ 'Authorization': AUTH_HEADER });
@@ -176,7 +177,7 @@ async function main() {
 
             // Check if post already exists on WordPress
             const existsRes = await page.evaluate(async (postTitle) => {
-                const res = await fetch(`https://ting.weiai.ai/wp-json/wp/v2/posts?search=${encodeURIComponent(postTitle)}`);
+                const res = await fetch(`https://ting.vi.fyi/wp-json/wp/v2/posts?search=${encodeURIComponent(postTitle)}`);
                 if (res.ok) {
                     const posts = await res.json();
                     const exact = posts.find(p => p.title.rendered === postTitle || p.title.raw === postTitle);
@@ -206,7 +207,7 @@ async function main() {
                 const byteArray = new Uint8Array(byteNumbers);
                 const blob = new Blob([byteArray], { type: 'audio/mpeg' });
 
-                const res = await fetch("https://ting.weiai.ai/wp-json/wp/v2/media", {
+                const res = await fetch("https://ting.vi.fyi/wp-json/wp/v2/media", {
                     method: "POST",
                     headers: {
                         "Content-Disposition": `attachment; filename="${encodeURIComponent(fileName)}"`,
@@ -247,7 +248,7 @@ async function main() {
 
                 const postRes = await page.evaluate(async (pData) => {
                     try {
-                        const res = await fetch("https://ting.weiai.ai/wp-json/wp/v2/posts", {
+                        const res = await fetch("https://ting.vi.fyi/wp-json/wp/v2/posts", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify(pData)
@@ -292,7 +293,7 @@ async function main() {
 
             const postRes = await page.evaluate(async (pData) => {
                 try {
-                    const res = await fetch("https://ting.weiai.ai/wp-json/wp/v2/posts", {
+                    const res = await fetch("https://ting.vi.fyi/wp-json/wp/v2/posts", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(pData)

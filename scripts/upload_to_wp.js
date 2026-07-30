@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Upload Ting Bible Audio files (.mp3) to ting.weiai.ai (WordPress REST API)
+ * Upload Ting Bible Audio files (.mp3) to ting.vi.fyi (WordPress REST API)
  * Automatically categorizes, tags, and creates audio posts.
  * Filters OUT video files (.mp4).
  */
@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const WP_URL = "https://ting.weiai.ai/wp-json/wp/v2";
+const WP_URL = "https://ting.vi.fyi/wp-json/wp/v2";
 const AUTH_HEADER = "Basic " + Buffer.from("michaelhuo:oWCV Kh7h 77oL HILK Nsh8 CR07").toString("base64");
 
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -165,8 +165,8 @@ async function main() {
     const context = await browser.newContext();
     const page = await context.newPage();
 
-    console.log("Navigating to https://ting.weiai.ai/ to solve WAF challenge...");
-    await page.goto("https://ting.weiai.ai/", { waitUntil: "networkidle" });
+    console.log("Navigating to https://ting.vi.fyi/ to solve WAF challenge...");
+    await page.goto("https://ting.vi.fyi/", { waitUntil: "networkidle" });
     await page.waitForTimeout(3000);
 
     await page.setExtraHTTPHeaders({ 'Authorization': AUTH_HEADER });
@@ -194,7 +194,7 @@ async function main() {
 
         // Check if post already exists
         const existsRes = await page.evaluate(async (postTitle) => {
-            const res = await fetch(`https://ting.weiai.ai/wp-json/wp/v2/posts?search=${encodeURIComponent(postTitle)}`);
+            const res = await fetch(`https://ting.vi.fyi/wp-json/wp/v2/posts?search=${encodeURIComponent(postTitle)}`);
             if (res.ok) {
                 const posts = await res.json();
                 const exact = posts.find(p => p.title.rendered === postTitle || p.title.raw === postTitle);
@@ -223,7 +223,7 @@ async function main() {
             const byteArray = new Uint8Array(byteNumbers);
             const blob = new Blob([byteArray], { type: 'audio/mpeg' });
 
-            const res = await fetch("https://ting.weiai.ai/wp-json/wp/v2/media", {
+            const res = await fetch("https://ting.vi.fyi/wp-json/wp/v2/media", {
                 method: "POST",
                 headers: {
                     "Content-Disposition": `attachment; filename="${encodeURIComponent(fileName)}"`,
@@ -264,7 +264,7 @@ async function main() {
 
             const postRes = await page.evaluate(async (pData) => {
                 try {
-                    const res = await fetch("https://ting.weiai.ai/wp-json/wp/v2/posts", {
+                    const res = await fetch("https://ting.vi.fyi/wp-json/wp/v2/posts", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(pData)
@@ -307,7 +307,7 @@ async function main() {
         };
 
         const postRes = await page.evaluate(async (pData) => {
-            const res = await fetch("https://ting.weiai.ai/wp-json/wp/v2/posts", {
+            const res = await fetch("https://ting.vi.fyi/wp-json/wp/v2/posts", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(pData)
