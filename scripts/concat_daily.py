@@ -415,11 +415,11 @@ Examples:
 
     # Generate matching .txt text file with Bible text and credit block
     try:
-        from bible_db import BibleDB, get_chinese_book_name
+        from bible_db import BibleDB, book_number_to_chinese
         db = BibleDB()
         txt_lines = []
-        for b_num, c_num in chapters:
-            book_name = get_chinese_book_name(b_num)
+        for b_num, c_num in pairs:
+            book_name = book_number_to_chinese(b_num)
             txt_lines.append(f"{book_name} 第{c_num}章")
             txt_lines.append("")
             verses = db.get_chapter(b_num, c_num, translation="cuvt")
