@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const WP_URL = "https://ting.vi.fyi/wp-json/wp/v2";
+const WP_URL = "https://ting.weiai.ai/wp-json/wp/v2";
 const AUTH_HEADER = "Basic " + Buffer.from("michaelhuo:oWCV Kh7h 77oL HILK Nsh8 CR07").toString("base64");
 
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -194,16 +194,22 @@ async function main() {
     // Launch Chromium for WAF session handling
     const browser = await chromium.launch({
         headless: true,
-        args: ['--disable-blink-features=AutomationControlled']
+        args: [
+            '--disable-blink-features=AutomationControlled',
+            '--window-size=1920,1080'
+        ]
     });
-    const context = await browser.newContext();
+    const context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    });
+    await context.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    });
     const page = await context.newPage();
 
-    console.log("Navigating to https://ting.vi.fyi/ to solve WAF challenge...");
-    await page.goto("https://ting.vi.fyi/", { waitUntil: "networkidle" });
+    console.log("Navigating to https://ting.weiai.ai/ to solve WAF challenge...");
+    await page.goto("https://ting.weiai.ai/", { waitUntil: "networkidle" });
     await page.waitForTimeout(3000);
-
-    await page.setExtraHTTPHeaders({ 'Authorization': AUTH_HEADER });
 
     let successCount = 0;
     let skipCount = 0;
@@ -227,15 +233,21 @@ async function main() {
         console.log(`  Title: ${title} | Audio Date: ${fileDate}`);
 
         // Check if post already exists
-        const existsRes = await page.evaluate(async (postTitle) => {
-            const res = await fetch(`https://ting.vi.fyi/wp-json/wp/v2/posts?search=${encodeURIComponent(postTitle)}`);
-            if (res.ok) {
-                const posts = await res.json();
-                const exact = posts.find(p => p.title.rendered === postTitle || p.title.raw === postTitle);
-                return !!exact;
+        const existsRes = await page.evaluate(async ({ postTitle, authHeader }) => {
+            try {
+                const res = await fetch(`https://ting.weiai.ai/wp-json/wp/v2/posts?search=${encodeURIComponent(postTitle)}`, {
+                    headers: { "Authorization": authHeader }
+                });
+                if (res.ok) {
+                    const posts = await res.json();
+                    const exact = posts.find(p => (p.title?.rendered === postTitle || p.title?.raw === postTitle));
+                    return !!exact;
+                }
+                return false;
+            } catch (e) {
+                return false;
             }
-            return false;
-        }, title);
+        }, { postTitle: title, authHeader: AUTH_HEADER });
 
         if (existsRes) {
             console.log(`  ℹ Post already exists on WordPress, skipping: ${title}`);
@@ -248,32 +260,37 @@ async function main() {
         const base64Data = fileBuf.toString('base64');
 
         // 1. Upload Media via REST API
-        const mediaRes = await page.evaluate(async ({ fileName, base64Data }) => {
-            const byteCharacters = atob(base64Data);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            const blob = new Blob([byteArray], { type: 'audio/mpeg' });
-
-            const res = await fetch("https://ting.vi.fyi/wp-json/wp/v2/media", {
-                method: "POST",
-                headers: {
-                    "Content-Disposition": `attachment; filename="${encodeURIComponent(fileName)}"`,
-                    "Content-Type": "audio/mpeg"
-                },
-                body: blob
-            });
-            let data;
+        const mediaRes = await page.evaluate(async ({ fileName, base64Data, authHeader }) => {
             try {
-                data = await res.json();
-            } catch(e) {
-                const text = await res.text().catch(() => "");
-                data = { message: text || e.toString() };
+                const byteCharacters = atob(base64Data);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: 'audio/mpeg' });
+
+                const res = await fetch("https://ting.weiai.ai/wp-json/wp/v2/media", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": authHeader,
+                        "Content-Disposition": `attachment; filename="${encodeURIComponent(fileName)}"`,
+                        "Content-Type": "audio/mpeg"
+                    },
+                    body: blob
+                });
+                let data;
+                try {
+                    data = await res.json();
+                } catch(e) {
+                    const text = await res.text().catch(() => "");
+                    data = { message: text || e.toString() };
+                }
+                return { status: res.status, data: data };
+            } catch (err) {
+                return { status: 500, data: { message: err.toString() } };
             }
-            return { status: res.status, data: data };
-        }, { fileName, base64Data });
+        }, { fileName, base64Data, authHeader: AUTH_HEADER });
 
         if (mediaRes.status !== 201 && mediaRes.status !== 200) {
             console.log(`  ⚠️ Media Upload skipped/failed (${mediaRes.status}):`, (mediaRes.data?.message || mediaRes.data).slice(0, 100));
@@ -291,18 +308,21 @@ async function main() {
                 tags: tags
             };
 
-            const postRes = await page.evaluate(async (pData) => {
+            const postRes = await page.evaluate(async ({ pData, authHeader }) => {
                 try {
-                    const res = await fetch("https://ting.vi.fyi/wp-json/wp/v2/posts", {
+                    const res = await fetch("https://ting.weiai.ai/wp-json/wp/v2/posts", {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { 
+                            "Authorization": authHeader,
+                            "Content-Type": "application/json" 
+                        },
                         body: JSON.stringify(pData)
                     });
                     return { status: res.status, data: await res.json() };
                 } catch(err) {
                     return { status: 500, data: { message: err.toString() } };
                 }
-            }, postData);
+            }, { pData: postData, authHeader: AUTH_HEADER });
 
             if (postRes.status === 201 || postRes.status === 200) {
                 console.log(`  ✓ Post Published (CDN Fallback): ${postRes.data.link}`);
@@ -330,14 +350,21 @@ async function main() {
             featured_media: mediaId
         };
 
-        const postRes = await page.evaluate(async (pData) => {
-            const res = await fetch("https://ting.vi.fyi/wp-json/wp/v2/posts", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(pData)
-            });
-            return { status: res.status, data: await res.json() };
-        }, postData);
+        const postRes = await page.evaluate(async ({ pData, authHeader }) => {
+            try {
+                const res = await fetch("https://ting.weiai.ai/wp-json/wp/v2/posts", {
+                    method: "POST",
+                    headers: { 
+                        "Authorization": authHeader,
+                        "Content-Type": "application/json" 
+                    },
+                    body: JSON.stringify(pData)
+                });
+                return { status: res.status, data: await res.json() };
+            } catch(err) {
+                return { status: 500, data: { message: err.toString() } };
+            }
+        }, { pData: postData, authHeader: AUTH_HEADER });
 
         if (postRes.status === 201 || postRes.status === 200) {
             console.log(`  ✓ Post Published: ${postRes.data.link}`);
