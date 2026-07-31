@@ -145,11 +145,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="半年歷史時序聆聽 + 半年智慧讚美聆聽 (186-day paired plans)")
     parser.add_argument("days", type=str, help="Day number (1–186) or range (e.g. 1-5)")
     parser.add_argument(
-        "--no-mp4", action="store_true",
-        help="Skip MP4 video generation (MP4 is enabled by default)",
+        "--mp4", action="store_true",
+        help="Enable MP4 video generation (disabled by default)",
     )
     args = parser.parse_args()
-    generate_mp4 = not args.no_mp4
+    generate_mp4 = args.mp4
 
     try:
         requested_days = parse_day_range(args.days)

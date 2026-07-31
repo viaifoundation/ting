@@ -232,8 +232,8 @@ Examples:
         help="For compare mode: reproducible per-chapter order (omit = deterministic male→female)",
     )
     parser.add_argument(
-        "--no-mp4", action="store_true",
-        help="Skip MP4 video generation (MP3 only)",
+        "--mp4", action="store_true",
+        help="Enable MP4 video generation (disabled by default)",
     )
     args = parser.parse_args()
 
@@ -279,7 +279,7 @@ Examples:
 
     generate_script = REPO_ROOT / "scripts" / "generate_plan_audio.py"
     
-    generate_mp4 = not args.no_mp4
+    generate_mp4 = args.mp4
     bg_image = get_background_image()
     if generate_mp4:
         if not bg_image:

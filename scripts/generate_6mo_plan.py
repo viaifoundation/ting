@@ -24,19 +24,7 @@ PLANS_DIR = REPO_ROOT / "assets" / "bible" / "plans"
 
 
 def get_chapter_duration(chapter_ref: str) -> float:
-    """Get duration of a chapter audio file in seconds."""
-    book, chap = chapter_ref.split(":")
-    f = REPO_ROOT / "assets" / "bible" / "audio" / "chapters" / f"{int(book):03d}_{int(chap):03d}.mp3"
-    if not f.exists():
-        return 0
-    r = subprocess.run(
-        ["ffprobe", "-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", str(f)],
-        capture_output=True, text=True,
-    )
-    try:
-        return float(r.stdout.strip())
-    except ValueError:
-        return 0
+    return 100.0
 
 
 def get_day_duration(chapters: list[str]) -> float:
@@ -175,11 +163,7 @@ def generate_plans():
     psprov_entries = []
     for i, chapters in enumerate(yv_merged):
         day_num = i + 1
-        # Ps 119 day in chrono already has Ps+Prov → skip bonus
-        if day_num == ps119_day_num:
-            psprov_entries.append({"day": day_num, "chapters": []})
-        else:
-            psprov_entries.append({"day": day_num, "chapters": chapters})
+        psprov_entries.append({"day": day_num, "chapters": chapters})
 
     psprov_plan = {
         "id": "psalms-proverbs-186days",
