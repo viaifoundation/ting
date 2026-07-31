@@ -74,6 +74,40 @@ function cleanTitle(fileName) {
     return name;
 }
 
+function buildPostContent(filePath, title, audioUrl, mediaId = null) {
+    const txtPath = filePath.replace(/\.mp3$/i, '.txt');
+    let bibleHtml = '';
+
+    if (fs.existsSync(txtPath)) {
+        const txtRaw = fs.readFileSync(txtPath, 'utf8').trim();
+        const lines = txtRaw.split('\n');
+        bibleHtml = lines.map(line => {
+            const trimmed = line.trim();
+            if (!trimmed) return '';
+            if (trimmed.startsWith('內容取自') || trimmed.startsWith('聖經語音') || trimmed.startsWith('閱讀聆聽')) {
+                return `<p><em>${trimmed}</em></p>`;
+            }
+            if (trimmed.match(/^(?:[\u4e00-\u9fa5\w\s]+)\s+第\d+章$/)) {
+                return `<h3>${trimmed}</h3>`;
+            }
+            return `<p>${trimmed}</p>`;
+        }).filter(Boolean).join('\n');
+    } else {
+        bibleHtml = `
+<p><strong>朗讀計劃：</strong> ${title}</p>
+<p><em>內容取自 YouVersion「今日經文」與「讀經計劃」。</em></p>
+<p><em>聖經語音由 Everest (女聲) 與 閻大衛 (男聲) 老師提供。</em></p>
+<p><em>閱讀聆聽，盡在唯愛 AI 基金會。VOTD 今日經文：https://votd.vi.fyi，Shema 讀經計劃：https://ting.vi.fyi</em></p>
+        `.trim();
+    }
+
+    const audioBlock = mediaId
+        ? `<!-- wp:audio {"id":${mediaId}} -->\n<figure class="wp-block-audio"><audio controls src="${audioUrl}"></audio></figure>\n<!-- /wp:audio -->`
+        : `<!-- wp:audio -->\n<figure class="wp-block-audio"><audio controls src="${audioUrl}"></audio></figure>\n<!-- /wp:audio -->`;
+
+    return `${audioBlock}\n\n<div class="bible-post-content">\n${bibleHtml}\n</div>`;
+}
+
 function formatDateISO(dateObj) {
     const year = dateObj.getFullYear();
     const month = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -230,12 +264,7 @@ async function main() {
                 const fallbackAudioUrl = `https://media.weiai.ai/audio/${encodeURIComponent(fileName)}`;
                 console.log(`     ℹ Creating post with CDN fallback URL: ${fallbackAudioUrl}`);
 
-                const postContent = `
-<!-- wp:audio -->
-<figure class="wp-block-audio"><audio controls src="${fallbackAudioUrl}"></audio></figure>
-<!-- /wp:audio -->
-<p><strong>朗读计划：</strong> ${title}</p>
-                `.trim();
+                const postContent = buildPostContent(filePath, title, fallbackAudioUrl, null);
 
                 const postData = {
                     title: title,
@@ -273,13 +302,8 @@ async function main() {
             const audioUrl = mediaRes.data.source_url;
             console.log(`     ✓ Media Uploaded: ID ${mediaId}, URL: ${audioUrl}`);
 
-            // 2. Create Post
-            const postContent = `
-<!-- wp:audio {"id":${mediaId}} -->
-<figure class="wp-block-audio"><audio controls src="${audioUrl}"></audio></figure>
-<!-- /wp:audio -->
-<p><strong>朗读计划：</strong> ${title}</p>
-            `.trim();
+            // 2. Create Post with Bible text and credits
+            const postContent = buildPostContent(filePath, title, audioUrl, mediaId);
 
             const postData = {
                 title: title,

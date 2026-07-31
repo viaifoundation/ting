@@ -411,7 +411,33 @@ Examples:
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     combined.export(str(output_path), format="mp3", bitrate="320k")
-    print(f"✅ Saved: {output_path}")
+    print(f"✅ Saved audio: {output_path}")
+
+    # Generate matching .txt text file with Bible text and credit block
+    try:
+        from bible_db import BibleDB, get_chinese_book_name
+        db = BibleDB()
+        txt_lines = []
+        for b_num, c_num in chapters:
+            book_name = get_chinese_book_name(b_num)
+            txt_lines.append(f"{book_name} 第{c_num}章")
+            txt_lines.append("")
+            verses = db.get_chapter(b_num, c_num, translation="cuvt")
+            for v_num, v_text in verses:
+                txt_lines.append(f"{v_num} {v_text}")
+            txt_lines.append("")
+
+        # Add Foundation Credit Block
+        txt_lines.append("內容取自 YouVersion「今日經文」與「讀經計劃」。")
+        txt_lines.append("聖經語音由 Everest (女聲) 與 閻大衛 (男聲) 老師提供。")
+        txt_lines.append("閱讀聆聽，盡在唯愛 AI 基金會。VOTD 今日經文：https://votd.vi.fyi，Shema 讀經計劃：https://ting.vi.fyi")
+
+        txt_path = output_path.with_suffix(".txt")
+        txt_path.write_text("\n".join(txt_lines), encoding="utf-8")
+        print(f"📄 Saved Bible text: {txt_path}")
+    except Exception as e:
+        print(f"⚠️ Note: Could not create .txt text file: {e}")
+
     return 0
 
 
