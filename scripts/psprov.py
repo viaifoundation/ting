@@ -294,14 +294,13 @@ def main() -> int:
 
             plan = plan_cache[p_id]
             max_day = plan["days"]
-            if day_num > max_day:
-                print(f"⏭️  {p_id} (max {max_day}): skipping.")
-                continue
+            # Rotate day index for shorter plans (e.g. Day 99 maps to Day 6 of 31-day plan)
+            day_in_plan = ((day_num - 1) % max_day) + 1
 
             entries_by_day = {e["day"]: e for e in plan["entries"]}
-            entry = entries_by_day.get(day_num)
+            entry = entries_by_day.get(day_in_plan)
             if not entry or not entry.get("chapters"):
-                print(f"⚠️  {p_id}: no chapters.")
+                print(f"⚠️  {p_id}: no chapters for day {day_in_plan}.")
                 continue
 
             chapters = entry["chapters"]
@@ -312,15 +311,15 @@ def main() -> int:
             out_dir.mkdir(parents=True, exist_ok=True)
             ch_voice = VOICE_MODE_TO_CHAPTER_VOICE[v_mode]
 
-            print(f"[{p_id} | {v_mode}] {zh_cn} ({en})", flush=True)
+            print(f"[{p_id} (Day {day_in_plan}/{max_day}) | {v_mode}] {zh_cn} ({en})", flush=True)
 
             cmd = [
                 sys.executable,
                 str(generate_script),
                 p_id,
                 "-o", str(out_dir),
-                "--start-day", str(day_num),
-                "--end-day", str(day_num),
+                "--start-day", str(day_in_plan),
+                "--end-day", str(day_in_plan),
                 "--speech-volume", str(args.speech_volume),
                 "--use-chapter-filename",
                 "--no-speed-label",
@@ -328,6 +327,7 @@ def main() -> int:
                 "--bgm",
                 "--bgm-splits", "1",
                 "--chapter-voice", ch_voice,
+                "--filename-lang", "zh-tw",
             ]
             if args.use_tts:
                 cmd.append("--use-tts")
