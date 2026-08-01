@@ -47,6 +47,32 @@ TRANSLATION_COLUMNS: dict[str, str] = {
 }
 
 
+def _ensure_credit_audio_files(credits_dir: Path):
+    """Ensure credit audio MP3 files exist in assets/audio/credits."""
+    credits_dir.mkdir(parents=True, exist_ok=True)
+    c1_path = credits_dir / "credit_1.mp3"
+    c2_path = credits_dir / "credit_2.mp3"
+    c3_path = credits_dir / "credit_3.mp3"
+    if c1_path.exists() and c2_path.exists() and c3_path.exists():
+        return
+    import asyncio
+    import edge_tts
+    async def gen():
+        if not c1_path.exists():
+            c1 = edge_tts.Communicate("內容取自 YouVersion「今日經文」與「讀經計劃」。", "zh-TW-HsiaoChenNeural")
+            await c1.save(str(c1_path))
+        if not c2_path.exists():
+            c2 = edge_tts.Communicate("聖經語音由 Everest (女聲) 與 閻大衛 (男聲) 老師提供。", "zh-TW-YunJheNeural")
+            await c2.save(str(c2_path))
+        if not c3_path.exists():
+            c3 = edge_tts.Communicate("閱讀聆聽，盡在唯愛 AI 基金會。VOTD 今日經文：v o t d 點 v i 點 f y i，Shema 讀經計劃：t i n g 點 v i 點 f y i", "zh-TW-HsiaoChenNeural")
+            await c3.save(str(c3_path))
+    try:
+        asyncio.run(gen())
+    except Exception as e:
+        print(f"⚠️ Warning: Could not generate credit audio: {e}")
+
+
 def _speedup_ffmpeg(seg: AudioSegment, speed: float) -> AudioSegment:
     """Speed up using ffmpeg atempo (preserves pitch). Chains atempo for speed > 2."""
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
@@ -394,6 +420,15 @@ Examples:
 
     # Trim trailing silence
     combined = combined[:-args.gap_ms] if args.gap_ms > 0 else combined
+
+    # Append spoken audio credits at the end
+    credits_dir = repo_root / "assets" / "audio" / "credits"
+    _ensure_credit_audio_files(credits_dir)
+    credit_files = [credits_dir / f"credit_{i}.mp3" for i in (1, 2, 3)]
+    credit_silence = AudioSegment.silent(duration=800)
+    for cf in credit_files:
+        if cf.exists():
+            combined += credit_silence + AudioSegment.from_mp3(str(cf))
 
     # Apply BGM or speech volume
     if args.bgm:

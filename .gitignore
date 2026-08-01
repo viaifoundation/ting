@@ -28,3 +28,5 @@ Thumbs.db
 # Wrangler & DB cache
 .wrangler/
 /assets/bible/db/
+node_modules/
+test_output/
