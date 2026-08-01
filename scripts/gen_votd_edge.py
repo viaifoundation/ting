@@ -619,20 +619,13 @@ async def main():
     footer_lines = [c for c in sections['credits'] if c.strip()]
     
     # 2. Add Source Credit
-    footer_lines.append("內容取自 YouVersion「今日經文」(Verse of the Day)。")
+    footer_lines.append("內容取自 YouVersion「今日經文」與「讀經計劃」。")
     
-    # 3. Add Dynamic Voice Attribution
-    attributed_voices = list(set([b['chapter_voice'] for b in bible_audio_blocks if b['chapter_seg']]))
-    if attributed_voices:
-        if "David Yen" in attributed_voices and "Everest" in attributed_voices:
-            footer_lines.append("聖經語音由 Everest (女聲) 與 閻大衛 (男聲) 老師提供。")
-        elif "David Yen" in attributed_voices:
-            footer_lines.append("聖經語音由 閻大衛 (男聲) 老師提供。")
-        else:
-            footer_lines.append("聖經語音由 Everest (女聲) 提供。" )
+    # 3. Add Voice Attribution (Always credit both Everest (女聲) and 閻大衛 (男聲))
+    footer_lines.append("聖經語音由 Everest (女聲) 與 閻大衛 (男聲) 老師提供。")
             
     # 4. Add Foundation Credit
-    footer_lines.append("閱讀聆聽，盡在唯愛 AI 基金會。官網：v o t d 點 v i 點 f y i")
+    footer_lines.append("閱讀聆聽，盡在唯愛 AI 基金會。VOTD 今日經文：v o t d 點 v i 點 f y i，Shema 讀經計劃：t i n g 點 v i 點 f y i")
 
     # 5. End with the Title (thematic recap)
     if sections['title']:
@@ -659,7 +652,7 @@ async def main():
                 os.remove(temp_file)
         
         # In the text file, use the real URL
-        txt_credit = credit.replace("v o t d 點 v i 點 f y i", "https://votd.vi.fyi")
+        txt_credit = credit.replace("v o t d 點 v i 點 f y i", "https://votd.vi.fyi").replace("t i n g 點 v i 點 f y i", "https://ting.vi.fyi")
         txt_lines.append(txt_credit)
         txt_lines.append("")
 
@@ -763,7 +756,7 @@ async def main():
     # Also repeat in txt_lines for the long version
     for credit in sections.get('footer_lines', []):
         # Use real URL for text file
-        txt_credit = credit.replace("v o t d 點 v i 點 f y i", "https://votd.vi.fyi")
+        txt_credit = credit.replace("v o t d 點 v i 點 f y i", "https://votd.vi.fyi").replace("t i n g 點 v i 點 f y i", "https://ting.vi.fyi")
         txt_lines.append(txt_credit)
         txt_lines.append("")
 
