@@ -232,6 +232,8 @@ async function main() {
         console.log(`\nProcessing: ${relPath}`);
         console.log(`  Title: ${title} | Audio Date: ${fileDate}`);
 
+        const isForce = process.argv.includes('--force');
+
         // Check if post already exists
         const existsRes = await page.evaluate(async ({ postTitle, authHeader }) => {
             try {
@@ -241,16 +243,16 @@ async function main() {
                 if (res.ok) {
                     const posts = await res.json();
                     const exact = posts.find(p => (p.title?.rendered === postTitle || p.title?.raw === postTitle));
-                    return !!exact;
+                    return exact ? { id: exact.id } : null;
                 }
-                return false;
+                return null;
             } catch (e) {
-                return false;
+                return null;
             }
         }, { postTitle: title, authHeader: AUTH_HEADER });
 
-        if (existsRes) {
-            console.log(`  ℹ Post already exists on WordPress, skipping: ${title}`);
+        if (existsRes && !isForce) {
+            console.log(`  ℹ Post already exists on WordPress, skipping: ${title} (use --force to update)`);
             skipCount++;
             continue;
         }
@@ -337,7 +339,7 @@ async function main() {
         const audioUrl = mediaRes.data.source_url;
         console.log(`  ✓ Media Uploaded: ID ${mediaId}, URL: ${audioUrl}`);
 
-        // 2. Create Post with Bible text and credits
+        // 2. Create or Update Post with Bible text and credits
         const postContent = buildPostContent(filePath, title, audioUrl, mediaId);
 
         const postData = {
@@ -350,9 +352,13 @@ async function main() {
             featured_media: mediaId
         };
 
-        const postRes = await page.evaluate(async ({ pData, authHeader }) => {
+        const postEndpoint = existsRes
+            ? `https://ting.weiai.ai/wp-json/wp/v2/posts/${existsRes.id}`
+            : "https://ting.weiai.ai/wp-json/wp/v2/posts";
+
+        const postRes = await page.evaluate(async ({ targetUrl, pData, authHeader }) => {
             try {
-                const res = await fetch("https://ting.weiai.ai/wp-json/wp/v2/posts", {
+                const res = await fetch(targetUrl, {
                     method: "POST",
                     headers: { 
                         "Authorization": authHeader,
@@ -364,13 +370,14 @@ async function main() {
             } catch(err) {
                 return { status: 500, data: { message: err.toString() } };
             }
-        }, { pData: postData, authHeader: AUTH_HEADER });
+        }, { targetUrl: postEndpoint, pData: postData, authHeader: AUTH_HEADER });
 
         if (postRes.status === 201 || postRes.status === 200) {
-            console.log(`  ✓ Post Published: ${postRes.data.link}`);
+            const actionText = existsRes ? "Updated" : "Published";
+            console.log(`  ✓ Post ${actionText}: ${postRes.data.link}`);
             successCount++;
         } else {
-            console.log(`  ✗ Failed to publish post:`, postRes.status, postRes.data?.message || postRes.data);
+            console.log(`  ✗ Failed to publish/update post:`, postRes.status, postRes.data?.message || postRes.data);
         }
     }
 
