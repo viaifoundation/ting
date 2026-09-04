@@ -36,7 +36,7 @@ from text_cleaner import clean_text_basic, clean_text_for_tts
 import filename_parser
 import audio_mixer
 from audio_to_mp4 import create_mp4, DEFAULT_BG
-from caption_generator import parse_caption_flag
+from caption_generator import parse_caption_flag, parse_caption_scale
 from bible_db import BibleDB, parse_verse_reference, book_number_to_chinese
 from chapter_narration_gain import CHAPTER_VOICE_CHOICES, boost_db_for_chapter_voice
 from votd_narration_chapter import load_narration_chapter_mp3
@@ -72,6 +72,7 @@ if "-?" in sys.argv or "-h" in sys.argv or "--help" in sys.argv:
     print("  --mp4-bg IMAGE       Background image for MP4")
     print("  --mp4-res RES        MP4 resolution (Default: 1920x1080)")
     print("  --caption [true/false]       Enable burned-in captions on video (Default: false)")
+    print("  --caption-scale SCALE        Caption font scale multiplier: 1x, 2x, 3x, 4x, etc. (Default: 1x)")
     print("  --caption-large [true/false] Make burned-in caption font size 3x larger (Default: false)")
     print("  --caption-file FILE          Explicit SRT/VTT caption file for MP4")
     print("  --chapter-voice V    everest | davidyen | rotate | rotate_male_first | rotate_female_first")
@@ -86,7 +87,7 @@ if "-?" in sys.argv or "-h" in sys.argv or "--help" in sys.argv:
     print(f"  python {sys.argv[0]} -i input.txt")
     print(f"  python {sys.argv[0]} -i input.txt --voice six --bgm")
     print(f"  python {sys.argv[0]} -i input.txt --bible-bgm-volume -18")
-    print(f"  python {sys.argv[0]} -i input.txt --mp4 --caption true")
+    print(f"  python {sys.argv[0]} -i input.txt --mp4 --caption true --caption-scale 2x")
     sys.exit(0)
 
 import argparse
@@ -118,6 +119,8 @@ parser.add_argument("--mp4-bg", type=str, default=DEFAULT_BG, help="Background i
 parser.add_argument("--mp4-res", type=str, default="1920x1080", help="MP4 resolution")
 parser.add_argument("--caption", "--captions", type=parse_caption_flag, nargs="?", const=True, default=False,
                     help="Enable burned-in captions on MP4 video (true/false, default: false)")
+parser.add_argument("--caption-scale", "--caption-size", type=str, default="1x",
+                    help="Caption font scale multiplier: 1x, 2x, 3x, 4x, etc. (Default: 1x)")
 parser.add_argument("--caption-large", "--large-caption", "--caption-3x", type=parse_caption_flag, nargs="?", const=True, default=False,
                     help="Make burned-in caption font size 3x larger (true/false, default: false)")
 parser.add_argument("--caption-file", type=str, default=None, help="Explicit SRT/VTT caption file for MP4")
@@ -806,6 +809,11 @@ async def main():
             bg_path = os.path.join(SCRIPT_DIR, bg_path)
             
         if os.path.exists(bg_path):
+            scale_val = parse_caption_scale(args.caption_scale)
+            if args.caption_large and scale_val == 1.0:
+                scale_val = 3.0
+            caption_scale_str = f"{scale_val:g}x"
+
             # 1. Long Version MP4
             mp4_output = OUTPUT_PATH.replace(".mp3", ".mp4")
             print(f"\n🎬 Generating Long MP4...")
@@ -816,6 +824,7 @@ async def main():
                 resolution=args.mp4_res,
                 caption=args.caption,
                 caption_file=args.caption_file,
+                caption_scale=caption_scale_str,
                 caption_large=args.caption_large,
             )
             
@@ -830,6 +839,7 @@ async def main():
                     output_mp4=short_mp4,
                     resolution=args.mp4_res,
                     caption=args.caption,
+                    caption_scale=caption_scale_str,
                     caption_large=args.caption_large,
                 )
         else:
