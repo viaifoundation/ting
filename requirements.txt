@@ -7,4 +7,5 @@ pydub>=0.25.1                   # Audio manipulation: concatenation, volume, mix
 audioop-lts; python_version >= '3.13'
 edge-tts
 opencc-python-reimplemented
+pillow>=10.0.0
 

@@ -232,6 +232,16 @@ Output per day (4 files, or 2 with `--no-mp4`):
 
 Plan files: `assets/bible/plans/chronological-6month.json`, `assets/bible/plans/psalms-proverbs-186days.json`
 
+**Verse of the Day (VOTD) & Hard Captions** – Generate daily verse devotion audio and YouTube/WeChat MP4 videos with burned-in hard captions:
+
+```bash
+# Generate VOTD audio + video with burned-in captions
+python scripts/gen_votd_edge.py -i input.txt --mp4 --caption true
+
+# Or convert any existing audio to MP4 with burned-in captions
+python audio_to_mp4.py audio.mp3 --caption true
+```
+
 **Daily cron** – run at 00:05 Kiritimati (e.g. 10:05 UTC) to generate today's MP3s (preset 1 = 4 files):
 ```bash
 5 10 * * * cd /path/to/ting && source .venv/bin/activate && python scripts/firstlight.py
