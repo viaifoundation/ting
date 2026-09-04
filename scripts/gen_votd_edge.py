@@ -71,8 +71,9 @@ if "-?" in sys.argv or "-h" in sys.argv or "--help" in sys.argv:
     print("  --mp4                Generate MP4 video from audio (both short and long versions)")
     print("  --mp4-bg IMAGE       Background image for MP4")
     print("  --mp4-res RES        MP4 resolution (Default: 1920x1080)")
-    print("  --caption [true/false] Enable burned-in captions on video (Default: false)")
-    print("  --caption-file FILE  Explicit SRT/VTT caption file for MP4")
+    print("  --caption [true/false]       Enable burned-in captions on video (Default: false)")
+    print("  --caption-large [true/false] Make burned-in caption font size 3x larger (Default: false)")
+    print("  --caption-file FILE          Explicit SRT/VTT caption file for MP4")
     print("  --chapter-voice V    everest | davidyen | rotate | rotate_male_first | rotate_female_first")
     print("  -?, -h, --help       Show this help")
     print("\nVoice Modes:")
@@ -117,6 +118,8 @@ parser.add_argument("--mp4-bg", type=str, default=DEFAULT_BG, help="Background i
 parser.add_argument("--mp4-res", type=str, default="1920x1080", help="MP4 resolution")
 parser.add_argument("--caption", "--captions", type=parse_caption_flag, nargs="?", const=True, default=False,
                     help="Enable burned-in captions on MP4 video (true/false, default: false)")
+parser.add_argument("--caption-large", "--large-caption", "--caption-3x", type=parse_caption_flag, nargs="?", const=True, default=False,
+                    help="Make burned-in caption font size 3x larger (true/false, default: false)")
 parser.add_argument("--caption-file", type=str, default=None, help="Explicit SRT/VTT caption file for MP4")
 parser.add_argument(
     "--chapter-voice",
@@ -813,6 +816,7 @@ async def main():
                 resolution=args.mp4_res,
                 caption=args.caption,
                 caption_file=args.caption_file,
+                caption_large=args.caption_large,
             )
             
             # 2. Short Version MP4
@@ -826,6 +830,7 @@ async def main():
                     output_mp4=short_mp4,
                     resolution=args.mp4_res,
                     caption=args.caption,
+                    caption_large=args.caption_large,
                 )
         else:
             print(f"⚠️ Background image not found: {bg_path}")
