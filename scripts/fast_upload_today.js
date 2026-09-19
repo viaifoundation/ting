@@ -99,9 +99,9 @@ function buildPostContent(filePath, title, audioUrl, mediaId = null) {
 async function main() {
     console.log("=== Fast Upload Today's Ting Audio Files to WordPress ===");
 
-    // Find all audio files modified in the last 2 days
+    // Find all audio files modified in the last 18 hours (today)
     const now = Date.now();
-    const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+    const scanWindowMs = 18 * 60 * 60 * 1000;
 
     const audioFiles = [];
     function scanDir(dir) {
@@ -113,15 +113,16 @@ async function main() {
                 scanDir(fullPath);
             } else if (entry.isFile() && path.extname(entry.name).toLowerCase() === '.mp3') {
                 const stat = fs.statSync(fullPath);
-                if (now - stat.mtimeMs <= twoDaysMs) {
+                if (now - stat.mtimeMs <= scanWindowMs) {
                     audioFiles.push(fullPath);
                 }
             }
         }
     }
     scanDir(AUDIO_DIR);
+    audioFiles.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
 
-    console.log(`Found ${audioFiles.length} MP3 files generated/modified in the last 48 hours.`);
+    console.log(`Found ${audioFiles.length} MP3 files generated/modified in the last 18 hours.`);
 
     const browser = await chromium.launch({ headless: true });
     const context = await browser.newContext();
@@ -174,10 +175,10 @@ async function main() {
         let uploadName = fileName;
         let tempCompressedFile = null;
 
-        // If file > 21MB, optimize with ffmpeg at 192k or 128k to prevent WAF false positives and reduce load
-        if (uploadBuffer.length > 21 * 1024 * 1024) {
+        // If file > 20MB, optimize with ffmpeg to ensure smooth upload and prevent server body size rejection
+        if (uploadBuffer.length > 20 * 1024 * 1024) {
             tempCompressedFile = path.join(os.tmpdir(), `compressed_${Date.now()}_audio.mp3`);
-            const targetBitrate = uploadBuffer.length > 35 * 1024 * 1024 ? '128k' : '192k';
+            const targetBitrate = uploadBuffer.length > 35 * 1024 * 1024 ? '96k' : '128k';
             console.log(`  ⚡ Optimizing audio bitrate to ${targetBitrate} (${(uploadBuffer.length / 1024 / 1024).toFixed(1)} MB)...`);
             try {
                 execSync(`ffmpeg -y -i "${filePath}" -codec:a libmp3lame -b:a ${targetBitrate} "${tempCompressedFile}"`, { stdio: 'ignore' });
@@ -193,36 +194,31 @@ async function main() {
         let mediaRes = null;
 
         for (let attempt = 1; attempt <= 3; attempt++) {
-            mediaRes = await page.evaluate(async ({ fName, fBase64, authHeader }) => {
-                try {
-                    const binaryStr = atob(fBase64);
-                    const bytes = new Uint8Array(binaryStr.length);
-                    for (let i = 0; i < binaryStr.length; i++) {
-                        bytes[i] = binaryStr.charCodeAt(i);
-                    }
+            console.log(`  Uploading audio binary (${(uploadBuffer.length / 1024 / 1024).toFixed(1)} MB) [Attempt ${attempt}]...`);
+            try {
+                const response = await context.request.post("https://ting.weiai.ai/wp-json/wp/v2/media", {
+                    headers: {
+                        "Authorization": AUTH_HEADER,
+                        "Content-Type": "audio/mpeg",
+                        "Content-Disposition": `attachment; filename="${encodeURIComponent(uploadName)}"`
+                    },
+                    data: uploadBuffer,
+                    timeout: 180000
+                });
 
-                    const res = await fetch("https://ting.weiai.ai/wp-json/wp/v2/media", {
-                        method: "POST",
-                        headers: {
-                            "Authorization": authHeader,
-                            "Content-Type": "audio/mpeg",
-                            "Content-Disposition": 'attachment; filename="' + encodeURIComponent(fName) + '"'
-                        },
-                        body: bytes
-                    });
-                    const text = await res.text();
-                    let data;
-                    try { data = JSON.parse(text); } catch(e) { data = { message: text.substring(0, 100) }; }
-                    return { status: res.status, data };
-                } catch(err) {
-                    return { status: 500, data: { message: err.toString() } };
+                const status = response.status();
+                let data;
+                try { data = await response.json(); } catch(e) { data = { message: response.statusText() }; }
+                mediaRes = { status, data };
+
+                if (status === 201 || status === 200) {
+                    break;
                 }
-            }, { fName: uploadName, fBase64: uploadBuffer.toString('base64'), authHeader: AUTH_HEADER });
-
-            if (mediaRes.status === 201 || mediaRes.status === 200) {
-                break;
+                console.log(`  ⚠️ Attempt ${attempt} failed (${status}): ${data?.message || 'unknown'}. Refreshing WAF & Retrying in 3s...`);
+            } catch (err) {
+                console.log(`  ⚠️ Attempt ${attempt} error: ${err.message}. Retrying in 3s...`);
+                mediaRes = { status: 500, data: { message: err.message } };
             }
-            console.log(`  ⚠️ Attempt ${attempt} failed (${mediaRes.status}): ${mediaRes.data?.message || 'unknown'}. Refreshing WAF & Retrying in 3s...`);
             try {
                 await page.goto("https://ting.weiai.ai/", { waitUntil: "networkidle" });
             } catch(e) {}
