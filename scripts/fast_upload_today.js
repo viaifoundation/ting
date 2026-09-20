@@ -52,6 +52,13 @@ function determineCategoryAndTags(relPath, fileName) {
         tags.push(TAG_MAP['psalms'], TAG_MAP['proverbs']);
     }
 
+    if (relPath.includes('rotate') || fileName.includes('輪流')) {
+        tags.push(TAG_MAP['rotate-voices']);
+    }
+    if (relPath.includes('male-female') || fileName.includes('對照')) {
+        tags.push(TAG_MAP['male-female-voices']);
+    }
+
     return { catId, tags: Array.from(new Set(tags)) };
 }
 
@@ -155,7 +162,12 @@ async function main() {
                     const posts = await res.json();
                     const match = posts.find(p => p.title.rendered.includes(searchTitle));
                     if (match) {
-                        return { exists: true, link: match.link };
+                        const todayStr = new Date().toISOString().slice(0, 10);
+                        const isToday = match.date.startsWith(todayStr);
+                        const hasBrokenMedia = (match.content && match.content.rendered) 
+                            ? match.content.rendered.includes('media.weiai.ai') 
+                            : false;
+                        return { exists: true, id: match.id, link: match.link, isToday, hasBrokenMedia };
                     }
                 }
                 return { exists: false };
@@ -164,10 +176,18 @@ async function main() {
             }
         }, { searchTitle: title, authHeader: AUTH_HEADER });
 
-        if (existingCheck.exists) {
-            console.log(`  ⏭️ Post already exists: ${existingCheck.link}`);
+        if (existingCheck.exists && existingCheck.isToday && !existingCheck.hasBrokenMedia) {
+            console.log(`  ⏭️ Post already exists and is healthy: ${existingCheck.link}`);
             successCount++;
             continue;
+        }
+
+        if (existingCheck.exists) {
+            if (existingCheck.hasBrokenMedia) {
+                console.log(`  🔄 Post exists (${existingCheck.id}) but has broken audio URL. Re-uploading media and updating...`);
+            } else if (!existingCheck.isToday) {
+                console.log(`  🔄 Post exists from older date (${existingCheck.id}). Updating date to today and refreshing media...`);
+            }
         }
 
         // Upload media inside page evaluation context (bypasses WAF with cookies)
@@ -175,10 +195,10 @@ async function main() {
         let uploadName = fileName;
         let tempCompressedFile = null;
 
-        // If file > 20MB, optimize with ffmpeg to ensure smooth upload and prevent server body size rejection
-        if (uploadBuffer.length > 20 * 1024 * 1024) {
+        // If file > 10MB, optimize with ffmpeg to ensure smooth upload and prevent server body size rejection
+        if (uploadBuffer.length > 10 * 1024 * 1024) {
             tempCompressedFile = path.join(os.tmpdir(), `compressed_${Date.now()}_audio.mp3`);
-            const targetBitrate = uploadBuffer.length > 35 * 1024 * 1024 ? '96k' : '128k';
+            const targetBitrate = uploadBuffer.length > 25 * 1024 * 1024 ? '96k' : '128k';
             console.log(`  ⚡ Optimizing audio bitrate to ${targetBitrate} (${(uploadBuffer.length / 1024 / 1024).toFixed(1)} MB)...`);
             try {
                 execSync(`ffmpeg -y -i "${filePath}" -codec:a libmp3lame -b:a ${targetBitrate} "${tempCompressedFile}"`, { stdio: 'ignore' });
@@ -255,27 +275,48 @@ async function main() {
             postData.featured_media = mediaId;
         }
 
-        const postRes = await page.evaluate(async ({ pData, authHeader }) => {
-            try {
-                const res = await fetch("https://ting.weiai.ai/wp-json/wp/v2/posts", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": authHeader,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(pData)
-                });
-                return { status: res.status, data: await res.json() };
-            } catch(err) {
-                return { status: 500, data: { message: err.toString() } };
-            }
-        }, { pData: postData, authHeader: AUTH_HEADER });
+        let postRes = null;
+        if (existingCheck.exists) {
+            // Update existing post
+            postRes = await page.evaluate(async ({ postId, pData, authHeader }) => {
+                try {
+                    const res = await fetch(`https://ting.weiai.ai/wp-json/wp/v2/posts/${postId}`, {
+                        method: "POST",
+                        headers: {
+                            "Authorization": authHeader,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(pData)
+                    });
+                    return { status: res.status, data: await res.json() };
+                } catch(err) {
+                    return { status: 500, data: { message: err.toString() } };
+                }
+            }, { postId: existingCheck.id, pData: postData, authHeader: AUTH_HEADER });
+        } else {
+            // Create new post
+            postRes = await page.evaluate(async ({ pData, authHeader }) => {
+                try {
+                    const res = await fetch("https://ting.weiai.ai/wp-json/wp/v2/posts", {
+                        method: "POST",
+                        headers: {
+                            "Authorization": authHeader,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(pData)
+                    });
+                    return { status: res.status, data: await res.json() };
+                } catch(err) {
+                    return { status: 500, data: { message: err.toString() } };
+                }
+            }, { pData: postData, authHeader: AUTH_HEADER });
+        }
 
         if (postRes.status === 201 || postRes.status === 200) {
-            console.log(`  🎉 Post Published: ${postRes.data.link}`);
+            console.log(`  🎉 Post Published/Updated: ${postRes.data.link}`);
             successCount++;
         } else {
-            console.log(`  ✗ Failed to publish post (${postRes.status}):`, postRes.data?.message || postRes.data);
+            console.log(`  ✗ Failed to save post (${postRes.status}):`, postRes.data?.message || postRes.data);
         }
         await page.waitForTimeout(2000);
     }
