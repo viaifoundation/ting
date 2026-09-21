@@ -36,6 +36,7 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -229,11 +230,17 @@ def main() -> int:
         help="With duplicate_random: seed for reproducible order per chapter (omit = non-deterministic)",
     )
     parser.add_argument(
+        "--date",
+        type=str,
+        default=None,
+        help="Date folder (YYYYMMDD, default: today in PDT)",
+    )
+    parser.add_argument(
         "-o",
         "--output",
         type=str,
         default=None,
-        help="Output directory (default: audio/<plan_id>-<mode>/)",
+        help="Output directory (default: audio/<date>/)",
     )
     parser.add_argument("--speech-volume", type=int, default=4)
     parser.add_argument("--use-tts", action="store_true")
@@ -307,7 +314,19 @@ def main() -> int:
             zh_cn = chapters_to_chinese(chapters, BOOK_CHINESE)
             en = chapters_to_english(chapters)
             sub = AUDIO_SUBDIR_BY_MODE[v_mode]
-            out_dir = Path(args.output) if args.output else REPO_ROOT / "audio" / f"{p_id}-{sub}"
+            if args.output:
+                out_dir = Path(args.output)
+            else:
+                if args.date:
+                    date_str = args.date.strip()
+                else:
+                    try:
+                        import zoneinfo
+                        tz = zoneinfo.ZoneInfo("America/Los_Angeles")
+                        date_str = datetime.now(tz).strftime("%Y%m%d")
+                    except Exception:
+                        date_str = datetime.now().strftime("%Y%m%d")
+                out_dir = REPO_ROOT / "audio" / date_str
             out_dir.mkdir(parents=True, exist_ok=True)
             ch_voice = VOICE_MODE_TO_CHAPTER_VOICE[v_mode]
 

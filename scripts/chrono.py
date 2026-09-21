@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -199,10 +200,16 @@ Examples:
         ),
     )
     parser.add_argument(
+        "--date",
+        type=str,
+        default=None,
+        help="Date folder (YYYYMMDD, default: today in PDT)",
+    )
+    parser.add_argument(
         "-o", "--output",
         type=str,
         default=None,
-        help="Output directory (default: audio/chronological-1year-<mode>/)",
+        help="Output directory (default: audio/<date>/)",
     )
     parser.add_argument("--speech-volume", type=int, default=4)
     parser.add_argument("--use-tts", action="store_true", help="Use TTS audio instead of Everest")
@@ -273,8 +280,19 @@ Examples:
 
     v_mode = args.voice_mode
     ch_voice = VOICE_MODE_TO_CHAPTER_VOICE[v_mode]
-    sub = AUDIO_SUBDIR_BY_MODE[v_mode]
-    out_dir = Path(args.output) if args.output else REPO_ROOT / "audio" / f"chronological-1year-{sub}"
+    if args.output:
+        out_dir = Path(args.output)
+    else:
+        if args.date:
+            date_str = args.date.strip()
+        else:
+            try:
+                import zoneinfo
+                tz = zoneinfo.ZoneInfo("America/Los_Angeles")
+                date_str = datetime.now(tz).strftime("%Y%m%d")
+            except Exception:
+                date_str = datetime.now().strftime("%Y%m%d")
+        out_dir = REPO_ROOT / "audio" / date_str
     out_dir.mkdir(parents=True, exist_ok=True)
 
     generate_script = REPO_ROOT / "scripts" / "generate_plan_audio.py"

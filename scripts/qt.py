@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -145,6 +146,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="半年歷史時序聆聽 + 半年智慧讚美聆聽 (186-day paired plans)")
     parser.add_argument("days", type=str, help="Day number (1–186) or range (e.g. 1-5)")
     parser.add_argument(
+        "--date", type=str, default=None,
+        help="Date folder (YYYYMMDD, default: today in PDT)",
+    )
+    parser.add_argument(
+        "-o", "--output", type=str, default=None,
+        help="Custom output directory (default: audio/<date>/)",
+    )
+    parser.add_argument(
         "--mp4", action="store_true",
         help="Enable MP4 video generation (disabled by default)",
     )
@@ -179,10 +188,23 @@ def main() -> int:
         print(f"❌ Day(s) out of range (plan has {max_day} days): {invalid}")
         return 1
 
-    chrono_out = REPO_ROOT / "audio" / "qt"
-    psprov_out = REPO_ROOT / "audio" / "qt"
-    chrono_out.mkdir(parents=True, exist_ok=True)
-    psprov_out.mkdir(parents=True, exist_ok=True)
+    if args.output:
+        out_dir = Path(args.output)
+    else:
+        if args.date:
+            date_str = args.date.strip()
+        else:
+            try:
+                import zoneinfo
+                tz = zoneinfo.ZoneInfo("America/Los_Angeles")
+                date_str = datetime.now(tz).strftime("%Y%m%d")
+            except Exception:
+                date_str = datetime.now().strftime("%Y%m%d")
+        out_dir = REPO_ROOT / "audio" / date_str
+
+    chrono_out = out_dir
+    psprov_out = out_dir
+    out_dir.mkdir(parents=True, exist_ok=True)
     generate_script = REPO_ROOT / "scripts" / "generate_plan_audio.py"
 
     bg_image = None

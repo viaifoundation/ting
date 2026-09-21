@@ -33,30 +33,25 @@ function determineCategoryAndTags(relPath, fileName) {
     let catId = CATEGORY_MAP['qt-daily'];
     let tags = [TAG_MAP['cuv'], TAG_MAP['everest-audio']];
 
-    if (relPath.includes('chronological-1year')) {
+    if (fileName.includes('年度歷史時序') || relPath.includes('chronological-1year')) {
         catId = CATEGORY_MAP['chronological-1year'];
-        tags.push(TAG_MAP['rotate-voices']);
-    } else if (relPath.includes('psalms-proverbs-youversion-372-male-female')) {
+    } else if (fileName.includes('372天智慧讚美') || relPath.includes('psalms-proverbs-youversion-372')) {
         catId = CATEGORY_MAP['psalms-proverbs-372'];
-        tags.push(TAG_MAP['male-female-voices'], TAG_MAP['psalms'], TAG_MAP['proverbs']);
-    } else if (relPath.includes('psalms-proverbs-youversion-372-rotate')) {
-        catId = CATEGORY_MAP['psalms-proverbs-372'];
-        tags.push(TAG_MAP['rotate-voices'], TAG_MAP['psalms'], TAG_MAP['proverbs']);
-    } else if (relPath.includes('wisdom-praise-30days') || relPath.includes('youversion-31')) {
+        tags.push(TAG_MAP['psalms'], TAG_MAP['proverbs']);
+    } else if (fileName.includes('31天智慧讚美') || relPath.includes('wisdom-praise-30days') || relPath.includes('youversion-31')) {
         catId = CATEGORY_MAP['wisdom-praise-30days'];
         tags.push(TAG_MAP['psalms'], TAG_MAP['proverbs']);
-    } else if (fileName.includes('半年歷史時序')) {
+    } else if (fileName.includes('半年歷史時序') || relPath.includes('chronological-6month')) {
         catId = CATEGORY_MAP['chronological-6month'];
-    } else if (fileName.includes('半年智慧讚美')) {
+    } else if (fileName.includes('半年智慧讚美') || relPath.includes('wisdom-praise-6month')) {
         catId = CATEGORY_MAP['wisdom-praise-6month'];
         tags.push(TAG_MAP['psalms'], TAG_MAP['proverbs']);
     }
 
-    if (relPath.includes('rotate') || fileName.includes('輪流')) {
-        tags.push(TAG_MAP['rotate-voices']);
-    }
-    if (relPath.includes('male-female') || fileName.includes('對照')) {
+    if (fileName.includes('對照') || relPath.includes('male-female')) {
         tags.push(TAG_MAP['male-female-voices']);
+    } else {
+        tags.push(TAG_MAP['rotate-voices']);
     }
 
     return { catId, tags: Array.from(new Set(tags)) };
@@ -106,30 +101,60 @@ function buildPostContent(filePath, title, audioUrl, mediaId = null) {
 async function main() {
     console.log("=== Fast Upload Today's Ting Audio Files to WordPress ===");
 
-    // Find all audio files modified in the last 18 hours (today)
-    const now = Date.now();
-    const scanWindowMs = 18 * 60 * 60 * 1000;
+    const dateArgIdx = process.argv.indexOf('--date');
+    const dirArgIdx = process.argv.indexOf('--dir');
+    let targetDir = null;
+
+    if (dirArgIdx !== -1 && process.argv[dirArgIdx + 1]) {
+        targetDir = path.resolve(process.argv[dirArgIdx + 1]);
+    } else if (dateArgIdx !== -1 && process.argv[dateArgIdx + 1]) {
+        targetDir = path.join(AUDIO_DIR, process.argv[dateArgIdx + 1].trim());
+    } else {
+        const todayPdt = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'America/Los_Angeles',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(new Date()).replace(/-/g, '');
+        const todayDir = path.join(AUDIO_DIR, todayPdt);
+        if (fs.existsSync(todayDir)) {
+            targetDir = todayDir;
+        }
+    }
 
     const audioFiles = [];
-    function scanDir(dir) {
-        if (!fs.existsSync(dir)) return;
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
+    if (targetDir && fs.existsSync(targetDir)) {
+        console.log(`Scanning target directory: ${targetDir}`);
+        const entries = fs.readdirSync(targetDir, { withFileTypes: true });
         for (const entry of entries) {
-            const fullPath = path.join(dir, entry.name);
-            if (entry.isDirectory()) {
-                scanDir(fullPath);
-            } else if (entry.isFile() && path.extname(entry.name).toLowerCase() === '.mp3') {
-                const stat = fs.statSync(fullPath);
-                if (now - stat.mtimeMs <= scanWindowMs) {
-                    audioFiles.push(fullPath);
+            const fullPath = path.join(targetDir, entry.name);
+            if (entry.isFile() && path.extname(entry.name).toLowerCase() === '.mp3') {
+                audioFiles.push(fullPath);
+            }
+        }
+    } else {
+        const now = Date.now();
+        const scanWindowMs = 18 * 60 * 60 * 1000;
+        function scanDir(dir) {
+            if (!fs.existsSync(dir)) return;
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            for (const entry of entries) {
+                const fullPath = path.join(dir, entry.name);
+                if (entry.isDirectory()) {
+                    scanDir(fullPath);
+                } else if (entry.isFile() && path.extname(entry.name).toLowerCase() === '.mp3') {
+                    const stat = fs.statSync(fullPath);
+                    if (now - stat.mtimeMs <= scanWindowMs) {
+                        audioFiles.push(fullPath);
+                    }
                 }
             }
         }
+        scanDir(AUDIO_DIR);
     }
-    scanDir(AUDIO_DIR);
     audioFiles.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
 
-    console.log(`Found ${audioFiles.length} MP3 files generated/modified in the last 18 hours.`);
+    console.log(`Found ${audioFiles.length} MP3 files to process.`);
 
     const browser = await chromium.launch({ headless: true });
     const context = await browser.newContext();
