@@ -145,6 +145,8 @@ def restore_pronunciation_for_display(text):
     # Biblical book/person phonetic substitutions
     text = text.replace("使徒行賺", "使徒行傳")
     text = text.replace("使徒行赚", "使徒行传")
+    text = text.replace("使徒行轉", "使徒行傳")
+    text = text.replace("使徒行转", "使徒行传")
     text = text.replace("薩母耳", "撒母耳")
     text = text.replace("額巴底亞", "俄巴底亞")
     text = text.replace("额巴底亚", "俄巴底亚")
@@ -229,12 +231,31 @@ def clean_text_basic(text):
 def clean_text_for_tts(text):
     """
     Full cleaning for TTS engines.
-    Includes basic cleaning plus URL-to-speech, classical punctuation handling,
-    and pronunciation fixes.
+    Includes basic cleaning, classical punctuation handling, URL-to-speech,
+    Bible reference conversion, date conversion, and RAG pronunciation fixes.
+    Note: Bible reference conversion strictly precedes pronunciation fixes (RAG).
     """
     text = clean_text_basic(text)
     text = handle_classical_punctuation(text)
     text = convert_urls_to_speech(text)
+
+    # Convert Bible references before phonetic replacement (RAG)
+    try:
+        from bible_parser import convert_bible_reference
+        text = convert_bible_reference(text)
+    except Exception:
+        pass
+
+    try:
+        from date_parser import convert_dates_in_text
+        text = convert_dates_in_text(text)
+    except Exception:
+        try:
+            from date_converter import convert_dates_in_text
+            text = convert_dates_in_text(text)
+        except Exception:
+            pass
+
     text = fix_pronunciation(text)
     # Final pass to ensure no double spaces or trailing whitespace
     text = re.sub(r' +', ' ', text)
@@ -243,8 +264,8 @@ def clean_text_for_tts(text):
 
 def clean_text(text):
     """
-    Legacy alias for clean_text_for_tts to maintain backward compatibility
-    with scripts not yet updated.
+    Basic text cleaning alias to prevent premature phonetic substitution (RAG)
+    before Bible verse, date, or filename extraction.
     """
-    return clean_text_for_tts(text)
+    return clean_text_basic(text)
 
