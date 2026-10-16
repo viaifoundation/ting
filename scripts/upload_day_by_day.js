@@ -9,7 +9,7 @@ const path = require('path');
 const { chromium } = require('playwright');
 
 const WP_URL = "https://ting.weiai.ai/wp-json/wp/v2";
-const AUTH_HEADER = "Basic " + Buffer.from("michaelhuo:oWCV Kh7h 77oL HILK Nsh8 CR07").toString("base64");
+const AUTH_HEADER = require('./wp_auth').getWordPressAuthHeader();
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const AUDIO_DIR = path.join(REPO_ROOT, 'audio');
@@ -183,8 +183,6 @@ async function main() {
     console.log("Navigating to https://ting.vi.fyi/ to solve WAF challenge...");
     await page.goto("https://ting.vi.fyi/", { waitUntil: "networkidle" });
     await page.waitForTimeout(3000);
-
-    await page.setExtraHTTPHeaders({ 'Authorization': AUTH_HEADER });
 
     let totalPublished = 0;
     let totalSkipped = 0;

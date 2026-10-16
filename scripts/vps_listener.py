@@ -1,59 +1,103 @@
 #!/usr/bin/env python3
+import hmac
 import http.server
 import json
+import logging
 import os
 import sqlite3
+from contextlib import contextmanager
+from html import escape
 from pathlib import Path
+from queue_security import require_secret, validate_plan_id
 
 PORT = 8080
-SECRET_TOKEN = os.environ.get("VPS_WEBHOOK_SECRET", "change-me-securely")
+SECRET_TOKEN = require_secret()
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = os.environ.get("TING_QUEUE_DB", str(REPO_ROOT / "queue.db"))
+MAX_BODY_BYTES = 16384
+
+
+@contextmanager
+def queue_db():
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        with conn:
+            yield conn
+    finally:
+        conn.close()
+
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS jobs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        plan_id TEXT NOT NULL,
-        status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'failed')),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        started_at TIMESTAMP,
-        completed_at TIMESTAMP,
-        error_message TEXT
-    );
-    """)
-    conn.commit()
-    conn.close()
+    with queue_db() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                plan_id TEXT NOT NULL,
+                status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'failed')),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                started_at TIMESTAMP,
+                completed_at TIMESTAMP,
+                error_message TEXT
+            )
+        """)
+
 
 class WebhookHandler(http.server.BaseHTTPRequestHandler):
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(15)
+
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'")
+        super().end_headers()
+
+    def respond(self, status, data):
+        body = json.dumps(data).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def check_auth(self):
-        auth_header = self.headers.get("Authorization")
-        if not auth_header or auth_header != f"Bearer {SECRET_TOKEN}":
-            self.send_response(401)
-            self.end_headers()
-            self.wfile.write(b"Unauthorized")
+        header = self.headers.get("Authorization", "")
+        if not hmac.compare_digest(header.encode("utf-8"), f"Bearer {SECRET_TOKEN}".encode("ascii")):
+            self.respond(401, {"error": "Unauthorized"})
             return False
         return True
 
+    def read_payload(self):
+        if self.headers.get("Transfer-Encoding"):
+            raise ValueError("Transfer-Encoding is not supported")
+        length = int(self.headers.get("Content-Length", "0"))
+        if not 0 < length <= MAX_BODY_BYTES:
+            raise ValueError("Request body must be between 1 and 16384 bytes")
+        raw = self.rfile.read(length)
+        if len(raw) != length:
+            raise ValueError("Incomplete request body")
+        payload = json.loads(raw.decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("Expected a JSON object")
+        return payload
+
     def do_GET(self):
+        if not self.check_auth():
+            return
+        try:
+            self.handle_get()
+        except Exception:
+            logging.exception("Queue GET failed")
+            self.respond(500, {"error": "Internal server error"})
+
+    def handle_get(self):
         if self.path in ("/", "/status"):
-            # Output an HTML dashboard
+            with queue_db() as conn:
+                rows = conn.execute("SELECT id, plan_id, status, created_at, started_at, completed_at, error_message FROM jobs ORDER BY id DESC LIMIT 50").fetchall()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            
-            try:
-                conn = sqlite3.connect(DB_PATH)
-                c = conn.cursor()
-                c.execute("SELECT id, plan_id, status, created_at, started_at, completed_at, error_message FROM jobs ORDER BY id DESC LIMIT 50")
-                rows = c.fetchall()
-                conn.close()
-            except Exception as e:
-                self.wfile.write(f"<h2>Database Error: {e}</h2>".encode("utf-8"))
-                return
-                
             html = """
             <!DOCTYPE html>
             <html>
@@ -95,7 +139,9 @@ class WebhookHandler(http.server.BaseHTTPRequestHandler):
             if not rows:
                 html += "<tr><td colspan='7' style='text-align: center; color: #9ca3af;'>No jobs in the queue.</td></tr>"
             for row in rows:
-                jid, plan_id, status, created, started, completed, err = row
+                jid, plan_id, status, created, started, completed, err = (
+                    escape(str(value), quote=True) if value is not None else "" for value in row
+                )
                 started_str = started if started else "-"
                 completed_str = completed if completed else "-"
                 err_str = f"<span class='error'>{err}</span>" if err else "-"
@@ -121,137 +167,60 @@ class WebhookHandler(http.server.BaseHTTPRequestHandler):
             return
             
         elif self.path == "/queue":
-            # Output JSON of pending/running queue
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            try:
-                conn = sqlite3.connect(DB_PATH)
-                c = conn.cursor()
-                c.execute("SELECT id, plan_id, status FROM jobs WHERE status IN ('pending', 'running') ORDER BY id ASC")
-                jobs = [{"id": r[0], "plan_id": r[1], "status": r[2]} for r in c.fetchall()]
-                conn.close()
-                self.wfile.write(json.dumps(jobs).encode("utf-8"))
-            except Exception as e:
-                self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
-            return
-
+            with queue_db() as conn:
+                rows = conn.execute("SELECT id, plan_id, status FROM jobs WHERE status IN ('pending', 'running') ORDER BY id ASC").fetchall()
+            self.respond(200, [{"id": r[0], "plan_id": r[1], "status": r[2]} for r in rows])
         elif self.path == "/api/next-job":
-            # Authentication check
-            if not self.check_auth():
-                return
-                
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            
-            try:
-                # Use BEGIN IMMEDIATE transaction to prevent concurrent race conditions
-                conn = sqlite3.connect(DB_PATH)
+            with queue_db() as conn:
                 conn.execute("BEGIN IMMEDIATE")
-                c = conn.cursor()
-                c.execute("SELECT id, plan_id FROM jobs WHERE status = 'pending' ORDER BY id ASC LIMIT 1")
-                row = c.fetchone()
-                
+                row = conn.execute("SELECT id, plan_id FROM jobs WHERE status = 'pending' ORDER BY id ASC LIMIT 1").fetchone()
                 if row:
                     job_id, plan_id = row
-                    c.execute("UPDATE jobs SET status = 'running', started_at = datetime('now') WHERE id = ?", (job_id,))
-                    conn.commit()
-                    self.wfile.write(json.dumps({"status": "running", "id": job_id, "plan_id": plan_id}).encode("utf-8"))
-                else:
-                    conn.rollback()
-                    self.wfile.write(json.dumps({"status": "idle"}).encode("utf-8"))
-                conn.close()
-            except Exception as e:
-                self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
-            return
-            
+                    conn.execute("UPDATE jobs SET status = 'running', started_at = datetime('now') WHERE id = ?", (job_id,))
+            self.respond(200, {"status": "running", "id": job_id, "plan_id": plan_id} if row else {"status": "idle"})
         else:
-            self.send_response(404)
-            self.end_headers()
-            self.wfile.write(b"Not Found")
-            
+            self.respond(404, {"error": "Not Found"})
+
     def do_POST(self):
         if not self.check_auth():
             return
-
-        if self.path == "/webhook":
-            content_length = int(self.headers.get('Content-Length', 0))
-            post_data = self.rfile.read(content_length)
-            try:
-                payload = json.loads(post_data.decode('utf-8'))
-                plan_id = payload.get("plan_id")
-                if not plan_id:
-                    self.send_response(400)
-                    self.end_headers()
-                    self.wfile.write(b"Missing plan_id")
-                    return
-
-                conn = sqlite3.connect(DB_PATH)
-                c = conn.cursor()
-                c.execute("INSERT INTO jobs (plan_id, status) VALUES (?, 'pending')", (plan_id,))
-                job_id = c.lastrowid
-                conn.commit()
-                conn.close()
-
-                self.send_response(201)
-                self.send_header('Content-Type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps({
-                    "status": "queued",
-                    "job_id": job_id,
-                    "plan_id": plan_id
-                }).encode('utf-8'))
-            except Exception as e:
-                self.send_response(500)
-                self.end_headers()
-                self.wfile.write(str(e).encode('utf-8'))
-            return
-
-        elif self.path == "/api/update-job":
-            content_length = int(self.headers.get('Content-Length', 0))
-            post_data = self.rfile.read(content_length)
-            try:
-                payload = json.loads(post_data.decode('utf-8'))
+        try:
+            payload = self.read_payload()
+            if self.path == "/webhook":
+                plan_id = validate_plan_id(payload.get("plan_id"))
+                with queue_db() as conn:
+                    cursor = conn.execute("INSERT INTO jobs (plan_id, status) VALUES (?, 'pending')", (plan_id,))
+                    job_id = cursor.lastrowid
+                self.respond(201, {"status": "queued", "job_id": job_id, "plan_id": plan_id})
+            elif self.path == "/api/update-job":
                 job_id = payload.get("job_id")
                 status = payload.get("status")
                 err_msg = payload.get("error_message")
-                
-                if not job_id or not status:
-                    self.send_response(400)
-                    self.end_headers()
-                    self.wfile.write(b"Missing job_id or status")
-                    return
+                if type(job_id) is not int or job_id <= 0 or status not in ("completed", "failed"):
+                    raise ValueError("Expected a positive integer job_id and completed or failed status")
+                if err_msg is not None and (not isinstance(err_msg, str) or len(err_msg) > 4096):
+                    raise ValueError("error_message must be a string of at most 4096 characters")
+                with queue_db() as conn:
+                    conn.execute("UPDATE jobs SET status = ?, completed_at = datetime('now'), error_message = ? WHERE id = ?", (status, err_msg, job_id))
+                self.respond(200, {"status": "updated"})
+            else:
+                self.respond(404, {"error": "Not Found"})
+        except (ValueError, UnicodeError):
+            self.close_connection = True
+            self.respond(400, {"error": "Invalid request body or fields"})
+        except Exception:
+            logging.exception("Queue POST failed")
+            self.respond(500, {"error": "Internal server error"})
 
-                conn = sqlite3.connect(DB_PATH)
-                c = conn.cursor()
-                c.execute(
-                    "UPDATE jobs SET status = ?, completed_at = datetime('now'), error_message = ? WHERE id = ?",
-                    (status, err_msg, job_id)
-                )
-                conn.commit()
-                conn.close()
-
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "updated"}).encode('utf-8'))
-            except Exception as e:
-                self.send_response(500)
-                self.end_headers()
-                self.wfile.write(str(e).encode('utf-8'))
-            return
-            
-        else:
-            self.send_response(404)
-            self.end_headers()
-            self.wfile.write(b"Not Found")
 
 if __name__ == "__main__":
     init_db()
-    server = http.server.HTTPServer(('0.0.0.0', PORT), WebhookHandler)
-    print(f"Queue Manager listening on port {PORT}...")
+    host = os.environ.get("TING_LISTEN_HOST", "127.0.0.1")
+    server = http.server.ThreadingHTTPServer((host, PORT), WebhookHandler)
+    print(f"Queue Manager listening on {host}:{PORT}...")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
+    finally:
+        server.server_close()
