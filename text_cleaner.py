@@ -57,8 +57,15 @@ def fix_pronunciation(text):
     """
     Substitutes characters to force correct TTS pronunciation.
     """
-    # 祢 (Nǐ) -> 你 (Nǐ) for God
+    # 祢 / 禰 / 袮 (Nǐ) -> 你 (Nǐ) for God (handles Simplified, Traditional, and Variant)
     text = text.replace("祢", "你")
+    text = text.replace("禰", "你")
+    text = text.replace("袮", "你")
+
+    # 牧長 / 牧长 (Mùzhǎng) -> 牧掌 (force pronunciation "Zhǎng" instead of "Cháng")
+    # Using '掌' as a phonetic guide for TTS/LLM so it does not read 長/长 as 常.
+    text = text.replace("牧長", "牧掌")
+    text = text.replace("牧长", "牧掌")
     
     # 使徒行傳 -> 使徒行賺 (force pronunciation "Zhuàn" instead of "Chuán")
     # Using '賺' as a phonetic guide for the TTS.
@@ -150,6 +157,17 @@ def restore_pronunciation_for_display(text):
     text = text.replace("薩母耳", "撒母耳")
     text = text.replace("額巴底亞", "俄巴底亞")
     text = text.replace("额巴底亚", "俄巴底亚")
+
+    # Pastor/Elder phonetic substitutions: 牧掌 -> 牧長 / 牧长
+    if "牧掌" in text:
+        trad_chars = set("們後處與從會為這說經聖傳靈國門見時華來禱愛讚無賜萬樂")
+        simp_chars = set("们后处与从会为这说经圣传灵国门见时华来祷爱赞无赐万乐")
+        trad_count = sum(1 for c in text if c in trad_chars)
+        simp_count = sum(1 for c in text if c in simp_chars)
+        if simp_count > trad_count:
+            text = text.replace("牧掌", "牧长")
+        else:
+            text = text.replace("牧掌", "牧長")
 
     return text
 
