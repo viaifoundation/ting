@@ -278,3 +278,44 @@ Player 2x on the original 1x file also works (each player implements its own alg
 ### BGM rotation
 
 Rotation is **per output file**, not per day. If an output is longer than one music track, we append the next track (random order), and loop through all tracks when exhausted. The first track and sequence are randomized for each file. Tracks are RMS-normalized to -18 dBFS before `--bgm-volume` so different sources don't cause volume jumps.
+
+## Credentials and VPS queue deployment
+
+WordPress upload scripts require `WP_USERNAME` and `WP_APP_PASSWORD` in their process
+environment. Create a dedicated WordPress application password with only the account
+permissions needed to publish audio. No script supplies default credentials. Keep
+secrets in your service manager or a local credential store; `.env` files are ignored
+and are **not** loaded automatically.
+
+The previous hardcoded WordPress application password must be revoked in WordPress
+(Users → Profile → Application Passwords) and replaced before running uploads again.
+Removing it from current source does not revoke it or erase Git history. Coordinate
+any history cleanup separately with repository collaborators.
+
+Both `scripts/vps_listener.py` and `scripts/vps_worker.py` require the same
+`VPS_WEBHOOK_SECRET`: a random value of 32–256 printable ASCII characters without spaces. Generate one with
+`python3 -c 'import secrets; print(secrets.token_urlsafe(32))'` and store it in the
+service environment. Both processes refuse startup if the secret is missing or too
+short. Existing services must receive the new environment settings before restart.
+
+The listener defaults to `127.0.0.1:8080`. For remote access, put it behind an HTTPS
+reverse proxy and keep the backend port private. `TING_LISTEN_HOST` can override the
+bind address when required by the deployment. The worker uses
+`TING_MANAGER_URL=http://localhost:8080` by default; non-loopback manager URLs must use
+HTTPS. Redirects are rejected. Every endpoint, including `/`, `/status` and `/queue`,
+requires `Authorization: Bearer <VPS_WEBHOOK_SECRET>`. A normal browser navigation
+without that header receives 401; use an authenticated HTTP client to inspect status.
+Do not put the token in a URL.
+
+Plan IDs must be 1–128 ASCII characters, start with a letter or digit, and otherwise
+contain only letters, digits, underscores or hyphens. Existing bundled IDs satisfy
+this format. Invalid legacy queued IDs are marked failed without invoking generation
+or D1 commands. Error responses omit internal details; inspect local service logs for
+diagnostics. Request bodies are limited to 16 KiB and error messages to 4096 characters.
+
+Run the security regression checks without calling WordPress or Cloudflare:
+
+```bash
+python3 -B -m unittest discover -s tests -v
+node --test tests/wp_auth.test.js
+```

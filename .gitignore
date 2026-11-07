@@ -30,3 +30,9 @@ Thumbs.db
 /assets/bible/db/
 node_modules/
 test_output/
+
+# Local credentials and queue state
+.env
+.env.*
+!.env.example
+queue.db*

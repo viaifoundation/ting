@@ -8,7 +8,7 @@ const path = require('path');
 const { chromium } = require('playwright');
 
 const WP_URL = "https://ting.vi.fyi/wp-json/wp/v2";
-const AUTH_HEADER = "Basic " + Buffer.from("michaelhuo:oWCV Kh7h 77oL HILK Nsh8 CR07").toString("base64");
+const AUTH_HEADER = require('./wp_auth').getWordPressAuthHeader();
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const AUDIO_DIR = path.join(REPO_ROOT, 'audio');
@@ -57,14 +57,12 @@ async function main() {
     await page.goto("https://ting.vi.fyi/", { waitUntil: "networkidle" });
     await page.waitForTimeout(3000);
 
-    await page.setExtraHTTPHeaders({ 'Authorization': AUTH_HEADER });
-
     // Fetch all posts
     console.log("Fetching existing posts from WordPress...");
-    const posts = await page.evaluate(async () => {
-        const res = await fetch("https://ting.vi.fyi/wp-json/wp/v2/posts?per_page=100");
+    const posts = await page.evaluate(async (authHeader) => {
+        const res = await fetch("https://ting.vi.fyi/wp-json/wp/v2/posts?per_page=100", { headers: { Authorization: authHeader } });
         return await res.json();
-    });
+    }, AUTH_HEADER);
 
     console.log(`Found ${posts.length} posts on WordPress.\n`);
 
@@ -81,14 +79,14 @@ async function main() {
             console.log(`  Target Date:  ${targetDate}`);
 
             if (currentDate !== targetDate) {
-                const updateRes = await page.evaluate(async ({ id, targetDate }) => {
+                const updateRes = await page.evaluate(async ({ id, targetDate, authHeader }) => {
                     const res = await fetch(`https://ting.vi.fyi/wp-json/wp/v2/posts/${id}`, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { "Content-Type": "application/json", Authorization: authHeader },
                         body: JSON.stringify({ date: targetDate })
                     });
                     return { status: res.status, data: await res.json() };
-                }, { id: postId, targetDate });
+                }, { id: postId, targetDate, authHeader: AUTH_HEADER });
 
                 if (updateRes.status === 200) {
                     console.log(`  ✓ Updated date to: ${updateRes.data.date}`);
