@@ -284,6 +284,8 @@ def clean_text(text):
     """
     Basic text cleaning alias to prevent premature phonetic substitution (RAG)
     before Bible verse, date, or filename extraction.
+    Also normalizes divine pronoun (祢/禰/袮) to '你' to ensure correct TTS pronunciation.
     """
-    return clean_text_basic(text)
+    text = clean_text_basic(text)
+    return text.replace("祢", "你").replace("禰", "你").replace("袮", "你")
 
