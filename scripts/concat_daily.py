@@ -65,7 +65,7 @@ def _ensure_credit_audio_files(credits_dir: Path):
             c2 = edge_tts.Communicate("聖經語音由 Everest (女聲) 與 閻大衛 (男聲) 老師提供。", "zh-TW-YunJheNeural")
             await c2.save(str(c2_path))
         if not c3_path.exists():
-            c3 = edge_tts.Communicate("閱讀聆聽，盡在唯愛 AI 基金會。VOTD 今日經文：v o t d 點 v i 點 f y i，Shema 讀經計劃：t i n g 點 v i 點 f y i", "zh-TW-HsiaoChenNeural")
+            c3 = edge_tts.Communicate("閱讀聆聽，盡在唯愛智能基金會。VOTD 今日經文：v o t d 點 v i 點 f y i，Shema 讀經計劃：t i n g 點 v i 點 f y i", "zh-TW-HsiaoChenNeural")
             await c3.save(str(c3_path))
     try:
         asyncio.run(gen())
@@ -465,7 +465,7 @@ Examples:
         # Add Foundation Credit Block
         txt_lines.append("內容取自 YouVersion「今日經文」與「讀經計劃」。")
         txt_lines.append("聖經語音由 Everest (女聲) 與 閻大衛 (男聲) 老師提供。")
-        txt_lines.append("閱讀聆聽，盡在唯愛 AI 基金會。VOTD 今日經文：https://votd.vi.fyi，Shema 讀經計劃：https://ting.vi.fyi")
+        txt_lines.append("閱讀聆聽，盡在唯愛智能基金會。VOTD 今日經文：https://votd.vi.fyi，Shema 讀經計劃：https://ting.vi.fyi")
 
         txt_path = output_path.with_suffix(".txt")
         txt_path.write_text("\n".join(txt_lines), encoding="utf-8")
